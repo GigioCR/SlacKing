@@ -165,7 +165,7 @@ export default function InboxPage() {
 
       {page && visible.length === 0 && pageIndex === 0 && (
         <div className="empty">
-          <img src="/icons/icon-192.png" alt="" width={88} height={88} className="empty-icon" />
+          <img src="/sloth.svg" alt="" width={180} height={108} className="empty-sloth" />
           <h2>All caught up</h2>
           <p className="muted">When Claude finishes a task or needs a decision, it shows up here.</p>
         </div>

@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-26 12 280 168" role="img" aria-label="A sleepy sloth lying on its side, head propped on one hand, scratching its belly, its crown fallen on the floor">
+  <!-- 5 · Sleepy colour: the colour sloth, crown fallen off onto the floor, slow scratch, Z's drifting up. -->
+  <style>
+    svg {
+      --outline: #3d2a1e; --fur: #b98d68; --belly: #dfc6a3; --face: #f6e8d2;
+      --patch: #5a3d2a; --lid: #f6e8d2; --nose: #2b1d15; --mouth: #6e2a2a; --tongue: #e8898a;
+      --crown: #f4b62f; --blush: #f19c95; --z: #8a6a52;
+    }
+    @media (prefers-color-scheme: dark) { svg { --z: #c9b39c; } }
+
+    .line { fill: none; stroke: var(--outline); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+    .thin { stroke-width: 3; }
+    .fur { fill: var(--fur); stroke: var(--outline); stroke-width: 4; stroke-linejoin: round; }
+    .face { fill: var(--face); }
+    .belly { fill: var(--belly); }
+    .patch { fill: var(--patch); }
+    .lid { fill: none; stroke: var(--lid); stroke-width: 2.6; stroke-linecap: round; }
+    .gold { fill: var(--crown); stroke: var(--outline); stroke-width: 4; stroke-linejoin: round; }
+    .zed { fill: none; stroke: var(--z); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .limb-out { fill: none; stroke: var(--outline); stroke-width: 18; stroke-linecap: round; stroke-linejoin: round; }
+    .limb-in { fill: none; stroke: var(--fur); stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* One 9s cycle: lazy scratch, long yawn. The crown just lies there, catching the light now and then. */
+    .body { transform-box: fill-box; transform-origin: 50% 100%; animation: breathe 4.5s ease-in-out infinite; }
+    .arm { animation: arm 9s ease-in-out infinite; }
+    .head { animation: head 9s ease-in-out infinite; }
+    .smile { animation: smile 9s ease-in-out infinite; }
+    .yawn { transform-box: fill-box; transform-origin: 50% 0; animation: yawn 9s ease-in-out infinite; }
+    .eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: squeeze 9s ease-in-out infinite; }
+    .toes { transform-origin: 178px 130px; animation: toes 9s ease-in-out infinite; }
+    .glint { transform-box: fill-box; transform-origin: 50% 50%; animation: glint 4.5s ease-in-out infinite; }
+    .z { opacity: 0; animation: drift 4.5s ease-out infinite; }
+    .z2 { animation-delay: 1.5s; }
+    .z3 { animation-delay: 3s; }
+
+    @keyframes breathe { 50% { transform: scaleY(1.05); } }
+    @keyframes arm {
+      0%, 8%, 16%, 24%, 32%, 40%, 50%, 90%, 100% { transform: rotate(0deg); }
+      4%, 12%, 20%, 28%, 36% { transform: rotate(9deg); }
+      58%, 76% { transform: rotate(-70deg); }
+    }
+    @keyframes head { 0%, 50%, 84%, 100% { transform: rotate(0deg); } 58%, 76% { transform: rotate(-9deg); } }
+    @keyframes smile { 0%, 50%, 82%, 100% { opacity: 1; } 53%, 79% { opacity: 0; } }
+    @keyframes yawn { 0%, 50%, 82%, 100% { transform: scale(0.2); opacity: 0; } 53% { opacity: 1; } 60%, 76% { transform: scale(1); opacity: 1; } 80% { transform: scale(0.3); opacity: 1; } }
+    @keyframes squeeze { 0%, 52%, 80%, 100% { transform: scaleY(1); } 60%, 76% { transform: scaleY(1.6); } }
+    @keyframes toes { 0%, 30%, 46%, 100% { transform: rotate(0deg); } 36% { transform: rotate(-5deg); } 42% { transform: rotate(2deg); } }
+    @keyframes glint { 0%, 70%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); } 80% { opacity: 1; transform: scale(1) rotate(45deg); } 90% { opacity: 0; transform: scale(0.3) rotate(90deg); } }
+    @keyframes drift {
+      0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+      20% { opacity: 1; }
+      100% { opacity: 0; transform: translate(18px, -34px) scale(1.15); }
+    }
+
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } .z1 { opacity: 1; } }
+  </style>
+
+  <ellipse fill="#000" cx="112" cy="169" rx="140" ry="5" opacity="0.1" />
+
+  <!-- Z's, rising from above the head -->
+  <g transform="translate(110 56)">
+    <path class="zed z z1" d="M0 0 h9 l-9 10 h9" />
+    <path class="zed z z2" d="M0 0 h7 l-7 8 h7" />
+    <path class="zed z z3" d="M0 0 h9 l-9 10 h9" />
+  </g>
+
+  <!-- The crown, fallen off and tipped over on the floor -->
+  <g transform="translate(6 148) rotate(-62) scale(0.82) translate(0 53)">
+    <path class="gold" style="stroke-width: 5.5" d="M-20 -44 L-25 -67 L-10 -55 L0 -72 L10 -55 L25 -67 L20 -44 Z" />
+    <rect class="gold" style="stroke-width: 5.5" x="-21" y="-44" width="42" height="9" />
+    <circle fill="#fff7dd" cx="0" cy="-39.5" r="2.6" />
+  </g>
+  <path class="glint" fill="#fff7dd" stroke="var(--crown)" stroke-width="1" d="M-2 122 l2 6 l6 2 l-6 2 l-2 6 l-2 -6 l-6 -2 l6 -2 Z" />
+
+  <!-- Bottom leg -->
+  <path class="limb-out" d="M184 154 Q214 168 236 162" />
+  <path class="limb-in" d="M184 154 Q214 168 236 162" />
+  <path class="line thin" d="M241 156 q7 1 8 7 M243 162 q6 2 6 7 M237 167 q4 2 5 6" />
+
+  <!-- Body with a lighter belly -->
+  <g transform="rotate(-8 136 136)">
+    <g class="body">
+      <ellipse class="fur" cx="136" cy="136" rx="66" ry="32" />
+      <ellipse class="belly" cx="144" cy="142" rx="40" ry="19" />
+      <path class="line thin" d="M112 112 q4 -5 8 0 M142 108 q4 -5 8 0 M170 112 q4 -5 8 0" opacity="0.5" />
+    </g>
+  </g>
+
+  <!-- Top leg, knee up -->
+  <g class="toes">
+    <path class="limb-out" d="M178 130 Q212 92 226 146" />
+    <path class="limb-in" d="M178 130 Q212 92 226 146" />
+    <path class="line thin" d="M219 153 q0 7 4 10 M226 154 q1 6 5 9 M233 150 q2 6 6 7" />
+  </g>
+
+  <!-- Head, bare and a bit tousled, resting in its hand -->
+  <g transform="translate(74 94) rotate(-8)">
+    <g class="head">
+      <circle class="fur" r="38" />
+      <path class="line thin" d="M-8 -37 q2 -8 7 -9 M0 -38 q3 -7 8 -7" />
+      <ellipse class="face" cy="8" rx="29" ry="22" />
+      <path class="patch" d="M-3 3 Q-12 -7 -25 5 Q-24 15 -13 14 Q-5 12 -3 3 Z M3 3 Q12 -7 25 5 Q24 15 13 14 Q5 12 3 3 Z" />
+      <path class="lid eyes" d="M-18 7 Q-13 10.5 -8 7 M8 7 Q13 10.5 18 7" />
+      <ellipse fill="var(--blush)" opacity="0.55" cx="-19" cy="20" rx="5" ry="3" />
+      <ellipse fill="var(--blush)" opacity="0.55" cx="19" cy="20" rx="5" ry="3" />
+      <ellipse fill="var(--nose)" cy="14" rx="5" ry="3.8" />
+      <path class="line thin smile" d="M-7 21.5 Q0 26.5 7 21.5" />
+      <g class="yawn">
+        <ellipse fill="var(--mouth)" cy="23.5" rx="6" ry="6.5" />
+        <ellipse fill="var(--tongue)" cy="27" rx="4" ry="2.6" />
+      </g>
+    </g>
+  </g>
+
+  <!-- Propping arm: elbow on the ground, hand cupping the cheek -->
+  <path class="limb-out" d="M86 152 L54 162 L48 128" />
+  <path class="limb-in" d="M86 152 L54 162 L48 128" />
+  <path class="line thin" d="M40 122 q0 -8 5 -12 M47 120 q1 -8 6 -11 M54 123 q2 -7 7 -9" />
+
+  <!-- Scratching arm -->
+  <g transform="translate(110 112)">
+    <g class="arm">
+      <path class="limb-out" d="M0 0 Q26 -2 40 22" />
+      <path class="limb-in" d="M0 0 Q26 -2 40 22" />
+      <path class="line thin" d="M34 30 q0 6 -3 10 M41 31 q1 6 -2 10 M48 27 q2 6 0 10" />
+    </g>
+  </g>
+</svg>

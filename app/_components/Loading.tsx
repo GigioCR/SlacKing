@@ -1,10 +1,10 @@
 // Loading states shaped like what is coming, so nothing jumps when it arrives.
 
-/** While the app checks whether this browser is signed in: the icon, gently breathing. */
+/** While the app checks whether this browser is signed in: the sloth, lounging and scratching its belly. */
 export function Splash() {
   return (
     <div className="splash" role="status" aria-label="Loading">
-      <img className="splash-icon" src="/icons/icon-192.png" alt="" width={72} height={72} />
+      <img className="splash-sloth" src="/sloth.svg" alt="" width={160} height={96} />
     </div>
   )
 }
