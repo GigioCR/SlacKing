@@ -121,8 +121,9 @@ export default function SetupPage() {
       <section className="card">
         <h2>Install</h2>
         <p className="muted small">
-          In Chrome, open the menu (⋮) and choose <strong>Add to Home screen</strong> → <strong>Install</strong>. The app
-          then opens on its own, and tapping a notification goes straight to its summary.
+          In Chrome, open the menu (⋮) and choose <strong>Install</strong> (on older Chrome: Add to Home screen →
+          Install), not Create shortcut. The app then opens on its own, and tapping a notification goes straight to its
+          summary.
         </p>
       </section>
 

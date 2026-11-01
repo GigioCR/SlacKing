@@ -89,7 +89,9 @@ you link a new phone if you lose this one.
    **+ → Other account** and scan the QR code. On the phone itself you can't scan your own screen:
    open **On this phone, so you can't scan it?** and enter the key by hand instead, or open the
    link page on your computer and scan from there. Enter the 6-digit code to finish.
-3. Chrome menu (⋮) → **Add to Home screen → Install**, then open the app from the home screen.
+3. Chrome menu (⋮) → **Install** (older Chrome: Add to Home screen → Install), then open the app
+   from the home screen. Not **Create shortcut**: that opens in a Chrome tab, and a tapped
+   notification may not land on its summary.
 4. **This phone → Turn on notifications**, allow them, then **Send a test notification**.
 
 Sessions last 30 days. Linking a new authenticator signs every browser out.

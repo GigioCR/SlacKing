@@ -1,6 +1,10 @@
 // Installs the Claude Code hook that sends notifications to the app.
 //
 //   npm run hook:install -- --url https://<your-app>.vercel.app --secret <WEBHOOK_SECRET>
+//   npm run hook:install https://<your-app>.vercel.app <WEBHOOK_SECRET>     (works in PowerShell too)
+//
+// PowerShell drops the "--" before npm sees it, so npm takes --url and --secret as its own options
+// and passes only the two values on. Those are accepted as they are: the address, then the secret.
 //
 // 1. Copies hook/notify.mjs to ~/.claude/hooks/slacking-notify.mjs.
 // 2. Writes the app's address and webhook secret to ~/.claude/hooks/slacking.json.
@@ -18,10 +22,11 @@ function arg(name) {
   return i > 0 ? process.argv[i + 1] : undefined
 }
 
-const url = arg('url')?.replace(/\/+$/, '')
-const secret = arg('secret')
+const positional = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && !all[i - 1]?.startsWith('--'))
+const url = (arg('url') ?? positional[0])?.replace(/\/+$/, '')
+const secret = arg('secret') ?? positional[1]
 if (!url || !/^https?:\/\//.test(url) || !secret) {
-  console.error('Usage: npm run hook:install -- --url https://<your-app>.vercel.app --secret <WEBHOOK_SECRET>')
+  console.error('Usage: npm run hook:install https://<your-app>.vercel.app <WEBHOOK_SECRET>')
   process.exit(1)
 }
 
