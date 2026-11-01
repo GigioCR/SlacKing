@@ -84,6 +84,7 @@ const STATUS_BY_ERROR: Record<string, number> = {
   PasskeyRejectedError: 401,
   EventNotFoundError: 404,
   NotEnrolledError: 409,
+  PromptClosedError: 409,
   SignInLockedError: 429,
   NotConfiguredError: 503,
 }

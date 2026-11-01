@@ -1,5 +1,7 @@
 // Types for hook/notify.mjs, so the tests can import it.
 
+import type { Prompt, Reply } from '../src/domain/prompt'
+
 export type Kind = 'finished' | 'needs-input'
 
 export interface HookInput {
@@ -18,13 +20,32 @@ export interface Payload {
   sessionTitle: string
   project: string
   summary: string
+  prompt?: Prompt
+  waitSeconds?: number
+}
+
+export interface PayloadOptions {
+  answers?: boolean
+  waitMinutes?: number
+  wokeByPhone?: boolean
+}
+
+export interface HookAnswer {
+  exitCode: number
+  stdout: string
+  stderr: string
 }
 
 export type Entry = Record<string, unknown>
 
-export function kindOf(input: HookInput): Kind | null
+export const DEFAULT_WAIT_MINUTES: number
+
+export function kindOf(input: HookInput, options?: { wokeByPhone?: boolean }): Kind | null
 export function parseLines(text: string): Entry[]
 export function sessionTitle(entries: Entry[]): string
 export function lastTurnSummary(entries: Entry[]): string
 export function describeRequest(toolName: string | undefined, toolInput: Record<string, unknown> | undefined): string
-export function buildPayload(input: HookInput, entries: Entry[]): Payload | null
+export function promptFor(input: HookInput, entries: Entry[]): Prompt | null
+export function buildPayload(input: HookInput, entries: Entry[], options?: PayloadOptions): Payload | null
+export function answerFor(input: HookInput, reply: Reply): HookAnswer | null
+export function movedOn(newEntries: Entry[]): boolean

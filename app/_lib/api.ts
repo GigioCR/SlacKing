@@ -1,6 +1,8 @@
 // The browser's side of the API. The session lives in an HttpOnly cookie, so nothing here
 // handles a credential.
 
+import type { Prompt, PromptState, Reply } from '@/src/domain/prompt'
+
 export const UNAUTHORIZED_EVENT = 'slk:unauthorized'
 
 export class ApiError extends Error {
@@ -64,4 +66,12 @@ export interface AgentEventDto {
   project: string
   summary: string
   receivedAt: string
+  /** What can be answered from here; see src/domain/prompt.ts. */
+  prompt: Prompt | null
+  promptState: PromptState
+  answerBy: string | null
+  reply: Reply | null
+  repliedAt: string | null
 }
+
+export type { Prompt, PromptState, Question, Reply } from '@/src/domain/prompt'

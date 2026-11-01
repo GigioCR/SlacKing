@@ -1,4 +1,5 @@
 import { InvalidInputError } from './errors'
+import type { PromptStatus } from './prompt'
 
 // Something a Claude Code session did that the person should hear about, as sent by the hook
 // on their computer (hook/notify.mjs). The hook builds the summary from the session's own log;
@@ -8,7 +9,12 @@ export type AgentEventKind = 'finished' | 'needs-input'
 
 export const AGENT_EVENT_KINDS: readonly AgentEventKind[] = ['finished', 'needs-input']
 
-export interface AgentEvent {
+/**
+ * `prompt` is set when the hook waits for an answer from the phone, until `answerBy`. `reply` is
+ * the phone's answer; `closedAt` is when the hook stopped waiting without one (answered at the
+ * computer, or the session moved on).
+ */
+export interface AgentEvent extends PromptStatus {
   readonly id: string
   readonly kind: AgentEventKind
   /** Claude Code's session id. Notifications for one session replace each other on the phone. */
@@ -20,9 +26,13 @@ export interface AgentEvent {
   /** What was done (finished) or what is being asked (needs-input). */
   readonly summary: string
   readonly receivedAt: Date
+  readonly repliedAt: Date | null
 }
 
-export type AgentEventInput = Omit<AgentEvent, 'id' | 'receivedAt'>
+export type AgentEventInput = Pick<AgentEvent, 'kind' | 'sessionId' | 'sessionTitle' | 'project' | 'summary'>
+
+/** The prompt fields of a notification that can't be answered from the phone. */
+export const NO_PROMPT = { prompt: null, answerBy: null, reply: null, repliedAt: null, closedAt: null } as const
 
 /** Notifications are kept this long, then deleted. */
 export const RETENTION_DAYS = 7

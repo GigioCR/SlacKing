@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clip, parseAgentEventInput, retentionCutoff } from '../src/domain/agent-event'
+import { clip, NO_PROMPT, parseAgentEventInput, retentionCutoff } from '../src/domain/agent-event'
 import { eventMessage } from '../src/application/notification-message'
 
 describe('parseAgentEventInput', () => {
@@ -63,6 +63,7 @@ describe('eventMessage', () => {
     project: 'hecho-syncware',
     summary: 'Fixed it.',
     receivedAt: new Date(),
+    ...NO_PROMPT,
   }
 
   it('names the session and project and links to the summary', () => {
@@ -72,6 +73,8 @@ describe('eventMessage', () => {
       body: 'Fixed it.',
       tag: 'session:s1',
       url: '/events/e1',
+      actions: [],
+      replyUrl: null,
     })
     expect(eventMessage({ ...base, kind: 'needs-input' }).title).toBe('Needs you: Fix invoice sync · hecho-syncware')
   })

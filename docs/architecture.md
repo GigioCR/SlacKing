@@ -22,6 +22,30 @@ JSON. It reads the session title (`custom-title` lines) and the last turn's reca
 `Authorization: Bearer WEBHOOK_SECRET`. `receiveAgentEvent` validates it, stores it, pushes it to
 every phone, forgets phones the push service reports gone, and deletes events older than 7 days.
 
+**Answering from the phone.** The hook adds what can be answered to the POST: `prompt`
+(`src/domain/prompt.ts`: a permission, a plan, questions with options, or a reply to a finished
+turn) and `waitSeconds`. The event stores it with `answerBy`. The phone answers with
+`POST /api/events/{id}/reply`; `answerPrompt` checks it against the prompt and saves it only while
+open (no answer yet, not closed, before `answerBy`), in one conditional update, so only the first
+answer counts. The hook polls `GET /api/webhooks/claude/events/{id}` every 2 s and hands the
+answer to Claude:
+
+- *PermissionRequest* (also fired for AskUserQuestion and ExitPlanMode): the hook runs while the
+  computer shows its own prompt, and whichever answers first wins. The answer goes back as the
+  hook's `decision`: allow; deny with a message; allow with `updatedInput.answers` for questions;
+  allow with the plan handed back for plans (a bare allow leaves that prompt open).
+- *Stop*: installed with `asyncRewake`, so it waits in the background. A reply exits 2 with the
+  text on stderr, which wakes Claude with it. Claude Code marks the next Stop as continued by a
+  hook (`stop_hook_active`); a marker file in `~/.claude/hooks/slacking-woke/` tells the hook that
+  one did finish, so it still notifies.
+
+While a prompt is open the session log stays still. A new person-side line (the tool result of an
+answer at the computer, an interruption, a typed message) means the session moved on: the hook
+stops and `DELETE`s the prompt, which closes it on the phone. A new event from a session also
+closes that session's open prompts. Buttons on the notification (`public/sw.js`, at most two on
+Android) send a one-tap answer only where that is safe: Deny, a two-option question, a quick reply.
+Allow and Approve open the screen first.
+
 **Push.** The same as Dotario Monitor: the phone subscribes with the VAPID public key, the server
 encrypts each message to that phone and signs it with the VAPID private key; `public/sw.js` shows
 it and opens `/events/{id}` on a tap (with the Cache Storage hand-off for a closed Android app).
@@ -65,7 +89,7 @@ authenticator (real P-256 keys and signatures), including answers made for anoth
 
 Supabase Postgres through `pg` and Supabase's transaction pooler (fits serverless). Tables in
 `migrations/`: `agent_events`, `device_subscriptions`, `authenticator` (one row) in 001;
-`passkeys` and `webauthn_challenges` in 002.
+`passkeys` and `webauthn_challenges` in 002; the prompt and reply columns of `agent_events` in 003.
 Row level security is on with no policies and the Data API roles lose their grants, so only the
 app's own connection can read them. Without `DATABASE_URL` the in-memory repositories are used.
 

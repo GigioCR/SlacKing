@@ -6,6 +6,7 @@ import type { AgentEvent, EventCursor } from '../../../domain/agent-event'
 import type { Authenticator } from '../../../domain/authenticator'
 import type { DeviceSubscription } from '../../../domain/device-subscription'
 import type { CeremonyPurpose, Passkey } from '../../../domain/passkey'
+import { promptState, type Reply } from '../../../domain/prompt'
 
 // Used when DATABASE_URL is not set (local development) and in tests. Lost on restart.
 
@@ -63,6 +64,24 @@ export class InMemoryEventRepository implements EventRepository {
 
   async get(id: string): Promise<AgentEvent | null> {
     return this.events.get(id) ?? null
+  }
+
+  async saveReply(id: string, reply: Reply, at: Date): Promise<boolean> {
+    const event = this.events.get(id)
+    if (!event || promptState(event, at) !== 'open') return false
+    this.events.set(id, { ...event, reply, repliedAt: at })
+    return true
+  }
+
+  async closePrompt(id: string, at: Date): Promise<void> {
+    const event = this.events.get(id)
+    if (event && promptState(event, at) === 'open') this.events.set(id, { ...event, closedAt: at })
+  }
+
+  async closeSessionPrompts(sessionId: string, at: Date): Promise<void> {
+    for (const event of this.events.values()) {
+      if (event.sessionId === sessionId) await this.closePrompt(event.id, at)
+    }
   }
 
   async listPage(after: EventCursor | null, limit: number): Promise<AgentEvent[]> {

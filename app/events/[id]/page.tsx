@@ -2,17 +2,22 @@
 
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { AnswerCard } from '../../_components/AnswerCard'
 import { EventBadge } from '../../_components/EventBadge'
 import { BackIcon, CopyIcon, TrashIcon } from '../../_components/Icons'
 import { Spinner, Splash } from '../../_components/Loading'
 import { useToast } from '../../_components/Toast'
 import { api, ApiError, type AgentEventDto } from '../../_lib/api'
+import { onEventsChanged } from '../../_lib/push'
 import { storage } from '../../_lib/storage'
 import { fullTime } from '../../_lib/time'
 import { useRequireSignIn } from '../../_lib/use-auth'
 
-// Where a tapped notification lands: the whole summary, which the notification itself cuts short.
+const OPEN_REFRESH_MS = 10_000
+
+// Where a tapped notification lands: the whole summary, which the notification itself cuts short,
+// and the answer when Claude is waiting for one.
 export default function EventPage() {
   const ready = useRequireSignIn()
   const router = useRouter()
@@ -22,16 +27,33 @@ export default function EventPage() {
   const [error, setError] = useState<string | null>(null)
   const [clearing, setClearing] = useState(false)
 
+  const load = useCallback(async () => {
+    if (!id) return
+    try {
+      setEvent((await api<{ event: AgentEventDto }>(`/api/events/${encodeURIComponent(id)}`)).event)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) setError('This notification was cleared, or is older than 7 days.')
+      else if (!(e instanceof ApiError && e.status === 401)) setError((e as Error).message)
+    }
+  }, [id])
+
   useEffect(() => {
     if (!ready || !id) return
     storage.markSeen([id])
-    api<{ event: AgentEventDto }>(`/api/events/${encodeURIComponent(id)}`)
-      .then(({ event }) => setEvent(event))
-      .catch((e: unknown) => {
-        if (e instanceof ApiError && e.status === 404) setError('This notification was cleared, or is older than 7 days.')
-        else if (!(e instanceof ApiError && e.status === 401)) setError((e as Error).message)
-      })
-  }, [ready, id])
+    void load()
+  }, [ready, id, load])
+
+  // While Claude waits, an answer at the computer (or the deadline) closes it: keep the screen honest.
+  const waiting = event?.promptState === 'open'
+  useEffect(() => {
+    if (!waiting) return
+    const timer = window.setInterval(() => void load(), OPEN_REFRESH_MS)
+    const stop = onEventsChanged(() => void load())
+    return () => {
+      window.clearInterval(timer)
+      stop()
+    }
+  }, [waiting, load])
 
   async function copySummary() {
     if (!event) return
@@ -85,12 +107,16 @@ export default function EventPage() {
               <span>{fullTime(event.receivedAt)}</span>
             </div>
             <p className="summary">{event.summary}</p>
-            <p className="muted small">
-              {event.kind === 'needs-input'
-                ? 'Claude is waiting for you at the computer.'
-                : 'Claude has finished and is waiting for your next message.'}
-            </p>
+            {event.promptState === 'none' && (
+              <p className="muted small">
+                {event.kind === 'needs-input'
+                  ? 'Claude is waiting for you at the computer.'
+                  : 'Claude has finished and is waiting for your next message.'}
+              </p>
+            )}
           </article>
+
+          <AnswerCard event={event} onChange={setEvent} />
 
           <div className="action-bar">
             <button type="button" className="button secondary" onClick={() => void copySummary()}>

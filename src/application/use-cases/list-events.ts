@@ -1,6 +1,7 @@
 import { cursorOf, parseCursor } from '../../domain/agent-event'
 import { InvalidInputError } from '../../domain/errors'
 import { toEventDto, type AgentEventDto } from '../event-dto'
+import type { Clock } from '../ports/clock'
 import type { EventRepository } from '../ports/event-repository'
 
 /** A phone screen's worth: enough to scan, short enough not to scroll far. */
@@ -29,7 +30,7 @@ function pageSize(raw: unknown): number {
   return size
 }
 
-export function listEvents(deps: { events: EventRepository }) {
+export function listEvents(deps: { events: EventRepository; clock: Clock }) {
   return async (input: ListEventsInput = {}): Promise<EventPage> => {
     const after = parseCursor(input.cursor)
     const limit = pageSize(input.limit)
@@ -38,7 +39,7 @@ export function listEvents(deps: { events: EventRepository }) {
     const events = rows.slice(0, limit)
     const last = events.at(-1)
     return {
-      events: events.map(toEventDto),
+      events: events.map((event) => toEventDto(event, deps.clock.now())),
       nextCursor: rows.length > limit && last ? cursorOf(last) : null,
       total,
     }

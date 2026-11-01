@@ -13,19 +13,39 @@ Microsoft Authenticator (any TOTP authenticator app works).
 ```
 Claude Code (your PC)                         Vercel                         Your phone
 ─────────────────────                         ──────                         ──────────
-Stop / PermissionRequest /   ──hook──▶  POST /api/webhooks/claude  ──web push──▶  notification
-AskUserQuestion / ExitPlanMode           (Bearer WEBHOOK_SECRET)                  tap → full summary
-        │                                         │
- hook/notify.mjs reads the session's             saves it in Supabase (7 days)
- name and summary from its local log
+Stop / PermissionRequest     ──hook──▶  POST /api/webhooks/claude  ──web push──▶  notification
+(permissions, questions,                 (Bearer WEBHOOK_SECRET)                  tap → full summary
+ plans)                                           │                                     │
+        │                                saves it in Supabase (7 days)          your answer
+ hook/notify.mjs reads the session's              │                                     │
+ name and summary from its local log   ◀──polls── answer ◀── POST /api/events/{id}/reply
+ and hands your answer to Claude
 ```
 
 - **Done**: sent when a turn ends. The summary is the short recap the Claude desktop app shows
   under each reply; without one, the start of Claude's last message.
 - **Needs you**: sent when Claude asks permission for a tool (says which command or file), asks
-  you a question (says the question), or wants a plan approved.
+  you a question (says the question and its options), or wants a plan approved (shows the plan).
 - Notifications from the same session replace each other on the phone. Tapping one opens its full
   summary. The inbox keeps 7 days.
+
+### Answering from the phone
+
+Every notification can be answered, and the computer keeps asking at the same time: whichever you
+answer first wins, so nothing waits on the phone while you are at your desk.
+
+| Claude is… | On the notification (Android) | On its screen |
+|---|---|---|
+| asking permission | **Deny**; **Allow…** opens the screen first | Allow, Deny, or deny with a message ("don't push, explain first") |
+| asking a question | the two options, when there are only two | every option, several at once where allowed, or your own answer |
+| asking to approve a plan | **Review plan** | Approve, or keep planning with feedback |
+| done with a turn | its reply buttons ("Commit and push") | those, or any message: it reaches Claude as your next message |
+
+Allow and Approve always open the screen, so nothing runs from a lock screen without you reading
+it. iPhone shows no buttons on web notifications; everything works from the screen. The hook waits
+for the phone up to 30 minutes (`waitMinutes` in `~/.claude/hooks/slacking.json`); `"answers": false`
+there turns answering off and only notifies. Answering at the computer, or typing a new message,
+ends the wait and the phone stops offering.
 
 Only the session name, the folder name and the summary leave your computer, never the session log.
 Note that a permission summary includes the command Claude wants to run.
@@ -119,6 +139,8 @@ npm run hook:install -- --url https://<project>.vercel.app --secret <WEBHOOK_SEC
 This copies the hook to `~/.claude/hooks/`, saves the address and secret next to it, and adds it to
 `~/.claude/settings.json` beside your existing hooks (a backup of the file is saved first). New
 Claude Code sessions use it. If nothing arrives, look in `~/.claude/hooks/slacking-notify.log`.
+Run it again after updating the app: the hook and its settings change with releases (answering
+from the phone needs the hook to wait on permission requests and to wake Claude after a turn).
 
 ## Local development
 

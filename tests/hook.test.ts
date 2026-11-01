@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPayload, describeRequest, kindOf, lastTurnSummary, parseLines, sessionTitle } from '../hook/notify.mjs'
+import { answerFor, buildPayload, describeRequest, kindOf, lastTurnSummary, movedOn, parseLines, promptFor, sessionTitle } from '../hook/notify.mjs'
 
 // Shaped like the lines of a real Claude Code session log (~/.claude/projects/<folder>/<session>.jsonl).
 const user = (text: string) => ({ type: 'user', message: { role: 'user', content: text } })
@@ -73,9 +73,15 @@ describe('describeRequest', () => {
     )
     expect(describeRequest('Edit', { file_path: 'src/a.ts' })).toBe('Wants to edit src/a.ts')
     expect(describeRequest('AskUserQuestion', { questions: [{ question: 'Which DB?' }, { question: 'Which host?' }] })).toBe(
-      'Asks: Which DB? / Which host?',
+      'Asks: Which DB?\nWhich host?',
     )
+    expect(
+      describeRequest('AskUserQuestion', { questions: [{ question: 'Which DB?', options: [{ label: 'Postgres' }, { label: 'SQLite' }] }] }),
+    ).toBe('Asks: Which DB? (Postgres / SQLite)')
     expect(describeRequest('ExitPlanMode', {})).toBe('Has a plan ready and wants your approval.')
+    expect(describeRequest('ExitPlanMode', { plan: '1. Add the column\n2. Backfill' })).toBe(
+      'Has a plan ready:\n\n1. Add the column\n2. Backfill',
+    )
     expect(describeRequest('mcp__github__create_pr', {})).toBe('Wants to use mcp__github__create_pr')
   })
 })
@@ -117,5 +123,79 @@ describe('parseLines', () => {
     expect(parseLines('{"type":"user"\n{"type":"custom-title","customTitle":"A"}\n')).toEqual([
       { type: 'custom-title', customTitle: 'A' },
     ])
+  })
+})
+
+describe('answering from the phone', () => {
+  const ask = {
+    hook_event_name: 'PermissionRequest',
+    session_id: 's1',
+    tool_name: 'AskUserQuestion',
+    tool_input: { questions: [{ question: 'Which DB?', options: [{ label: 'Postgres' }] }] },
+  }
+  const withActions = {
+    type: 'assistant',
+    message: {
+      content: [
+        {
+          type: 'tool_use',
+          name: 'mcp__ccd_turn__wrap_up',
+          input: { recap: 'Did it.', ask: 'Commit?', actions: [{ label: 'Commit it' }, { label: 'Open PR', action: 'create_pr' }, { label: ' ' }] },
+        },
+      ],
+    },
+  }
+
+  it('says what the phone can answer, with how long the hook waits', () => {
+    const payload = buildPayload({ hook_event_name: 'Stop', session_id: 's1' }, [user('go'), withActions], { answers: true, waitMinutes: 5 })
+    expect(payload).toMatchObject({ prompt: { type: 'reply', suggestions: ['Commit it'] }, waitSeconds: 300 })
+    expect(buildPayload(ask, [], { answers: true })?.prompt).toEqual({ type: 'question', questions: ask.tool_input.questions })
+    expect(promptFor({ hook_event_name: 'PermissionRequest', tool_name: 'ExitPlanMode' }, [])).toEqual({ type: 'plan' })
+    expect(promptFor({ hook_event_name: 'PermissionRequest', tool_name: 'Bash' }, [])).toEqual({ type: 'permission', tool: 'Bash' })
+  })
+
+  it('offers nothing when answering is off, or for events it cannot answer', () => {
+    expect(buildPayload(ask, [])).not.toHaveProperty('prompt')
+    expect(promptFor({ hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion' }, [])).toBeNull()
+  })
+
+  it('hands answers back as the permission decision', () => {
+    const decision = (input: typeof ask | Record<string, unknown>, reply: Parameters<typeof answerFor>[1]) =>
+      JSON.parse(answerFor(input, reply)?.stdout ?? 'null')?.hookSpecificOutput.decision
+    expect(decision({ ...ask, tool_name: 'Bash', tool_input: { command: 'ls' } }, { type: 'allow' })).toEqual({ behavior: 'allow' })
+    expect(decision({ ...ask, tool_name: 'Bash' }, { type: 'deny', message: '' })).toEqual({
+      behavior: 'deny',
+      message: 'The user denied this from their phone.',
+    })
+    expect(decision(ask, { type: 'answers', answers: { 'Which DB?': 'DuckDB' } })).toEqual({
+      behavior: 'allow',
+      updatedInput: { ...ask.tool_input, answers: { 'Which DB?': 'DuckDB' } },
+    })
+    // A plan is only approved with its input handed back.
+    expect(decision({ ...ask, tool_name: 'ExitPlanMode', tool_input: { plan: 'P' } }, { type: 'allow' })).toEqual({
+      behavior: 'allow',
+      updatedInput: { plan: 'P' },
+    })
+  })
+
+  it('wakes Claude with a reply after a finished turn', () => {
+    expect(answerFor({ hook_event_name: 'Stop' }, { type: 'message', message: 'Explain it' })).toEqual({
+      exitCode: 2,
+      stdout: '',
+      stderr: 'The user replied from their phone: Explain it',
+    })
+    expect(answerFor({ hook_event_name: 'Stop' }, { type: 'allow' })).toBeNull()
+  })
+
+  it('notifies after a turn the phone started, but not one another hook continued', () => {
+    expect(kindOf({ hook_event_name: 'Stop', stop_hook_active: true }, { wokeByPhone: true })).toBe('finished')
+    expect(kindOf({ hook_event_name: 'Stop', stop_hook_active: true })).toBeNull()
+  })
+
+  it("sees the session move on from the person's side only", () => {
+    expect(movedOn([{ type: 'assistant', message: { content: 'late reply' } }, { type: 'system' }])).toBe(false)
+    expect(movedOn([{ type: 'user', isMeta: true }])).toBe(false)
+    expect(movedOn([toolResult()])).toBe(true)
+    expect(movedOn([user('never mind')])).toBe(true)
   })
 })

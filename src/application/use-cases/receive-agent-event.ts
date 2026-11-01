@@ -1,4 +1,5 @@
-import { parseAgentEventInput, retentionCutoff, type AgentEvent } from '../../domain/agent-event'
+import { NO_PROMPT, parseAgentEventInput, retentionCutoff, type AgentEvent } from '../../domain/agent-event'
+import { parsePromptInput } from '../../domain/prompt'
 import { notifyDevices, type DeliverySummary } from '../notify-devices'
 import { eventMessage } from '../notification-message'
 import type { Clock } from '../ports/clock'
@@ -24,12 +25,14 @@ export interface ReceiveAgentEventResult extends DeliverySummary {
 /**
  * The hook on the computer reported that a session finished or needs a decision: keep it, push it
  * to every phone, and drop notifications past their retention. Pruning here means no scheduled job.
+ * Whatever the session was waiting on before is settled now, so its earlier prompts close.
  */
 export function receiveAgentEvent(deps: ReceiveAgentEventDeps) {
   return async (body: unknown): Promise<ReceiveAgentEventResult> => {
     const input = parseAgentEventInput(body)
     const now = deps.clock.now()
-    const event: AgentEvent = { ...input, id: deps.ids.next(), receivedAt: now }
+    const event: AgentEvent = { ...input, ...NO_PROMPT, ...parsePromptInput(body, now), id: deps.ids.next(), receivedAt: now }
+    await deps.events.closeSessionPrompts(event.sessionId, now)
     await deps.events.add(event)
     const delivery = await notifyDevices(deps, eventMessage(event))
     const pruned = await deps.events.deleteBefore(retentionCutoff(now))

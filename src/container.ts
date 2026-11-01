@@ -8,6 +8,7 @@ import {
   startPasskeyRegistration,
   startPasskeySignIn,
 } from './application/use-cases/passkeys'
+import { answerPrompt, closePrompt, readPromptAnswer } from './application/use-cases/answer-prompt'
 import { clearEvent, clearEvents } from './application/use-cases/clear-events'
 import { confirmLinking } from './application/use-cases/confirm-linking'
 import { getEvent } from './application/use-cases/get-event'
@@ -78,8 +79,11 @@ function build(config: AppConfig) {
     },
     useCases: {
       receiveAgentEvent: receiveAgentEvent({ events, ...notifyDeps, ids: uuidGenerator, clock: systemClock }),
-      listEvents: listEvents({ events }),
-      getEvent: getEvent({ events }),
+      listEvents: listEvents({ events, clock: systemClock }),
+      getEvent: getEvent({ events, clock: systemClock }),
+      answerPrompt: answerPrompt({ events, clock: systemClock }),
+      readPromptAnswer: readPromptAnswer({ events, clock: systemClock }),
+      closePrompt: closePrompt({ events, clock: systemClock }),
       clearEvent: clearEvent({ events }),
       clearEvents: clearEvents({ events }),
       subscribeDevice: subscribeDevice({ subscriptions, ids: uuidGenerator, clock: systemClock }),

@@ -182,6 +182,8 @@ export default function InboxPage() {
                     <span className="event-title">{event.sessionTitle}</span>
                     <span className="event-summary">{event.summary}</span>
                     <span className="meta">
+                      {event.promptState === 'open' && <span className="waiting">Waiting for you</span>}
+                      {event.promptState === 'answered' && <span>Answered</span>}
                       {event.project && event.project !== event.sessionTitle && <span>{event.project}</span>}
                       <span>{clockTime(event.receivedAt)}</span>
                     </span>

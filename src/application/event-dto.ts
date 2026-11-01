@@ -1,4 +1,5 @@
 import type { AgentEvent } from '../domain/agent-event'
+import { promptState, type Prompt, type PromptState, type Reply } from '../domain/prompt'
 
 /** An event as the API and the phone see it: dates as ISO strings. */
 export interface AgentEventDto {
@@ -9,9 +10,15 @@ export interface AgentEventDto {
   project: string
   summary: string
   receivedAt: string
+  /** What can be answered from the phone; null when nothing. */
+  prompt: Prompt | null
+  promptState: PromptState
+  answerBy: string | null
+  reply: Reply | null
+  repliedAt: string | null
 }
 
-export function toEventDto(event: AgentEvent): AgentEventDto {
+export function toEventDto(event: AgentEvent, now: Date): AgentEventDto {
   return {
     id: event.id,
     kind: event.kind,
@@ -20,5 +27,10 @@ export function toEventDto(event: AgentEvent): AgentEventDto {
     project: event.project,
     summary: event.summary,
     receivedAt: event.receivedAt.toISOString(),
+    prompt: event.prompt,
+    promptState: promptState(event, now),
+    answerBy: event.answerBy?.toISOString() ?? null,
+    reply: event.reply,
+    repliedAt: event.repliedAt?.toISOString() ?? null,
   }
 }

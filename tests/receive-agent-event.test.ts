@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { NotificationMessage } from '../src/application/notification-message'
 import type { DeliveryResult, Notifier } from '../src/application/ports/notifier'
 import { receiveAgentEvent } from '../src/application/use-cases/receive-agent-event'
+import { NO_PROMPT } from '../src/domain/agent-event'
 import type { DeviceSubscription } from '../src/domain/device-subscription'
 import {
   InMemoryEventRepository,
@@ -66,8 +67,8 @@ describe('receiveAgentEvent', () => {
 
   it('deletes notifications older than seven days', async () => {
     const s = await setup()
-    await s.events.add({ ...body, kind: 'finished', id: 'old', receivedAt: new Date('2026-10-19T00:00:00Z') })
-    await s.events.add({ ...body, kind: 'finished', id: 'recent', receivedAt: new Date('2026-10-21T00:00:00Z') })
+    await s.events.add({ ...body, kind: 'finished', id: 'old', receivedAt: new Date('2026-10-19T00:00:00Z'), ...NO_PROMPT })
+    await s.events.add({ ...body, kind: 'finished', id: 'recent', receivedAt: new Date('2026-10-21T00:00:00Z'), ...NO_PROMPT })
     const result = await s.receive(body)
     expect(result.pruned).toBe(1)
     expect(await s.events.get('old')).toBeNull()

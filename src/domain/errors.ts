@@ -15,6 +15,14 @@ export class EventNotFoundError extends Error {
   }
 }
 
+/** An answer to a notification Claude is no longer waiting on (answered, at the computer, or too late). */
+export class PromptClosedError extends Error {
+  constructor(message = "Claude isn't waiting for this answer anymore. Answer at the computer.") {
+    super(message)
+    this.name = 'PromptClosedError'
+  }
+}
+
 /** Something the server needs is not set up, e.g. the VAPID keys or the encryption key. */
 export class NotConfiguredError extends Error {
   constructor(message: string) {
