@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Pin the project root so a stray lockfile in a parent folder isn't picked up.
   outputFileTracingRoot: process.cwd(),
+  experimental: {
+    // Both of these, on in Next 16 by default, sent `next dev` into an endless page-reload loop in
+    // this OneDrive folder: the MCP endpoint's request log (.next/dev/logs) was seen as a changed
+    // file, and a dev cache restored from disk after a restart made every page load ask for a full
+    // reload. Neither is needed here; the cost is a slower first compile after starting dev.
+    mcpServer: false,
+    turbopackFileSystemCacheForDev: false,
+  },
   async headers() {
     return [
       {

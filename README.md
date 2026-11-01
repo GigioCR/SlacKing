@@ -108,14 +108,33 @@ Claude Code sessions use it. If nothing arrives, look in `~/.claude/hooks/slacki
 
 ## Local development
 
+Local development uses its own Postgres in Docker, never the real Supabase database, and its own
+VAPID keys, so nothing you do locally reaches your phone.
+
 ```bash
 cp .env.example .env.local   # fill in at least SETUP_CODE, SESSION_SECRET, ENCRYPTION_KEY
+docker compose up -d         # Postgres on localhost:54432 (docker-compose.yml)
+```
+
+Add the local database to `.env.local` and create its tables (PowerShell):
+
+```powershell
+Add-Content .env.local "DATABASE_URL=postgresql://slacking:slacking@localhost:54432/slacking"
+$env:DATABASE_URL = "postgresql://slacking:slacking@localhost:54432/slacking"; npm run migrate; Remove-Item Env:DATABASE_URL
+```
+
+Then:
+
+```bash
+npm run seed -- 40 --fresh   # 40 realistic notifications over the last days (local database only)
 npm run dev                  # http://localhost:3000
 npm run check                # lint, typecheck, tests
 ```
 
-Without `DATABASE_URL`, everything is kept in memory and lost on restart. Push notifications
-also work from `localhost` in Chrome.
+`npm test` also runs the paging and clearing tests against the Docker database when
+`TEST_DATABASE_URL` is set to the same address (they empty `agent_events` there first).
+Without `DATABASE_URL`, the app keeps everything in memory instead. Server-side code is wired
+once per dev-server start (`src/container.ts`), so restart `npm run dev` after changing it.
 
 Send a test event:
 

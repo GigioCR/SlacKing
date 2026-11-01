@@ -1,0 +1,29 @@
+# A local Postgres for development, so testing never touches the real Supabase database.
+#
+#   docker compose up -d
+#   $env:DATABASE_URL = "postgresql://slacking:slacking@localhost:54432/slacking"; npm run migrate
+#
+# Then put the same DATABASE_URL in .env.local and run `npm run dev`. Data survives restarts
+# (the slacking-db volume); `docker compose down -v` wipes it.
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: slacking-db
+    environment:
+      POSTGRES_USER: slacking
+      POSTGRES_PASSWORD: slacking
+      POSTGRES_DB: slacking
+    ports:
+      # 54432, not 5432, to stay clear of other local databases.
+      - '54432:5432'
+    volumes:
+      - slacking-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U slacking -d slacking']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  slacking-db:

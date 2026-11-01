@@ -73,3 +73,35 @@ function defaultSummary(kind: AgentEventKind): string {
 export function retentionCutoff(now: Date): Date {
   return new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60_000)
 }
+
+/**
+ * A place in the newest-first list: the last event of a page. The next page starts after it.
+ * Written as "<ISO time>_<id>", which is safe in a URL and needs no decoding.
+ */
+export interface EventCursor {
+  readonly receivedAt: Date
+  readonly id: string
+}
+
+export function cursorOf(event: Pick<AgentEvent, 'receivedAt' | 'id'>): string {
+  return `${event.receivedAt.toISOString()}_${event.id}`
+}
+
+export function parseCursor(raw: unknown): EventCursor | null {
+  if (raw === null || raw === undefined || raw === '') return null
+  const text = typeof raw === 'string' ? raw : ''
+  const split = text.indexOf('_')
+  const receivedAt = new Date(text.slice(0, split))
+  const id = text.slice(split + 1)
+  if (split < 1 || Number.isNaN(receivedAt.getTime()) || !/^[0-9a-zA-Z-]{1,100}$/.test(id)) {
+    throw new InvalidInputError('That page link is not valid. Go back to the first page.')
+  }
+  return { receivedAt, id }
+}
+
+/** "Clear all" clears what the person saw: everything up to the newest event on their screen. */
+export function parseClearUpTo(raw: unknown): Date {
+  const upTo = typeof raw === 'string' ? new Date(raw) : new Date(NaN)
+  if (Number.isNaN(upTo.getTime())) throw new InvalidInputError('upTo must be a date and time')
+  return upTo
+}

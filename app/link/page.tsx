@@ -2,7 +2,9 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { AuthHero } from '../_components/AuthHero'
 import { CodeField } from '../_components/CodeField'
+import { Spinner } from '../_components/Loading'
 import { api } from '../_lib/api'
 
 interface LinkingStart {
@@ -60,6 +62,8 @@ export default function LinkPage() {
 
   if (!started) {
     return (
+      <>
+      <AuthHero />
       <div className="card">
         <h1>Link your authenticator</h1>
         <p className="muted">
@@ -84,12 +88,18 @@ export default function LinkPage() {
             disabled={busy}
             autoFocus
           />
-          {error && <p className="error">{error}</p>}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
           <button className="button block" type="submit" disabled={busy || !setupCode.trim()}>
-            {busy ? 'Checking…' : 'Continue'}
+            {busy && <Spinner />}
+            {busy ? 'Checking' : 'Continue'}
           </button>
         </form>
       </div>
+      </>
     )
   }
 
@@ -124,9 +134,14 @@ export default function LinkPage() {
       >
         <label>Code from the app</label>
         <CodeField value={code} onChange={setCode} onComplete={(c) => void confirm(c)} disabled={busy} />
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
         <button className="button block" type="submit" disabled={busy || code.length !== 6}>
-          {busy ? 'Checking…' : 'Link and sign in'}
+          {busy && <Spinner />}
+          {busy ? 'Checking' : 'Link and sign in'}
         </button>
       </form>
     </div>

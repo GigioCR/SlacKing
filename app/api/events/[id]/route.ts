@@ -13,3 +13,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return handleError(error)
   }
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const denied = await requireSession(request)
+    if (denied) return denied
+    const { id } = await params
+    return json(await getContainer().useCases.clearEvent(id))
+  } catch (error) {
+    return handleError(error)
+  }
+}

@@ -14,7 +14,7 @@ export class ApiError extends Error {
 }
 
 interface ApiOptions {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'DELETE'
   body?: unknown
   /** Sign-in screens expect 401s and show them; elsewhere a 401 sends the person to sign in. */
   expectUnauthorized?: boolean
@@ -46,6 +46,12 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 export interface AuthStatus {
   linked: boolean
   signedIn: boolean
+}
+
+export interface EventPage {
+  events: AgentEventDto[]
+  nextCursor: string | null
+  total: number
 }
 
 export interface AgentEventDto {

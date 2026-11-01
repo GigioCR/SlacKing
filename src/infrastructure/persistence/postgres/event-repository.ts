@@ -1,5 +1,5 @@
 import type { EventRepository } from '../../../application/ports/event-repository'
-import type { AgentEvent } from '../../../domain/agent-event'
+import type { AgentEvent, EventCursor } from '../../../domain/agent-event'
 import type { Pool } from './pool'
 
 // Table defined in migrations/001_initial.sql.
@@ -46,12 +46,41 @@ export class PostgresEventRepository implements EventRepository {
     return rows[0] ? toEvent(rows[0]) : null
   }
 
-  async listRecent(limit: number): Promise<AgentEvent[]> {
+  async listPage(after: EventCursor | null, limit: number): Promise<AgentEvent[]> {
+    if (!after) {
+      const { rows } = await this.pool.query<EventRow>(
+        'select * from agent_events order by received_at desc, id desc limit $1',
+        [limit],
+      )
+      return rows.map(toEvent)
+    }
+    // A cursor this table can't have produced points nowhere.
+    if (!UUID.test(after.id)) return []
+    // Row comparison: strictly older, or the same time with a smaller id.
     const { rows } = await this.pool.query<EventRow>(
-      'select * from agent_events order by received_at desc limit $1',
-      [limit],
+      `select * from agent_events
+       where (received_at, id) < ($1, $2::uuid)
+       order by received_at desc, id desc
+       limit $3`,
+      [after.receivedAt, after.id, limit],
     )
     return rows.map(toEvent)
+  }
+
+  async count(): Promise<number> {
+    const { rows } = await this.pool.query<{ n: string }>('select count(*) as n from agent_events')
+    return Number(rows[0]?.n ?? 0)
+  }
+
+  async delete(id: string): Promise<boolean> {
+    if (!UUID.test(id)) return false
+    const result = await this.pool.query('delete from agent_events where id = $1', [id])
+    return (result.rowCount ?? 0) > 0
+  }
+
+  async deleteUpTo(upTo: Date): Promise<number> {
+    const result = await this.pool.query('delete from agent_events where received_at <= $1', [upTo])
+    return result.rowCount ?? 0
   }
 
   async deleteBefore(cutoff: Date): Promise<number> {

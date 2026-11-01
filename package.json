@@ -16,7 +16,8 @@
     "vapid": "web-push generate-vapid-keys",
     "migrate": "node scripts/migrate.mjs",
     "secrets": "node scripts/generate-secrets.mjs",
-    "hook:install": "node scripts/install-hook.mjs"
+    "hook:install": "node scripts/install-hook.mjs",
+    "seed": "node scripts/seed-local.mjs"
   },
   "dependencies": {
     "next": "16.4.3",

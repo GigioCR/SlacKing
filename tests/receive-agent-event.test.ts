@@ -78,6 +78,6 @@ describe('receiveAgentEvent', () => {
     const s = await setup()
     await expect(s.receive({ kind: 'finished' })).rejects.toThrow(/sessionId/)
     expect(s.notifier.sent).toHaveLength(0)
-    expect(await s.events.listRecent(10)).toHaveLength(0)
+    expect(await s.events.count()).toBe(0)
   })
 })

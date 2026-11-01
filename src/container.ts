@@ -1,5 +1,6 @@
 import type { SessionTokens } from './application/ports/session-tokens'
 import { checkSession } from './application/use-cases/check-session'
+import { clearEvent, clearEvents } from './application/use-cases/clear-events'
 import { confirmLinking } from './application/use-cases/confirm-linking'
 import { getEvent } from './application/use-cases/get-event'
 import { listEvents } from './application/use-cases/list-events'
@@ -62,6 +63,8 @@ function build(config: AppConfig) {
       receiveAgentEvent: receiveAgentEvent({ events, ...notifyDeps, ids: uuidGenerator, clock: systemClock }),
       listEvents: listEvents({ events }),
       getEvent: getEvent({ events }),
+      clearEvent: clearEvent({ events }),
+      clearEvents: clearEvents({ events }),
       subscribeDevice: subscribeDevice({ subscriptions, ids: uuidGenerator, clock: systemClock }),
       unsubscribeDevice: unsubscribeDevice({ subscriptions }),
       sendTestNotification: sendTestNotification(notifyDeps),

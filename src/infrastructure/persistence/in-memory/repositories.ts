@@ -1,7 +1,7 @@
 import type { AuthenticatorRepository } from '../../../application/ports/authenticator-repository'
 import type { EventRepository } from '../../../application/ports/event-repository'
 import type { SubscriptionRepository } from '../../../application/ports/subscription-repository'
-import type { AgentEvent } from '../../../domain/agent-event'
+import type { AgentEvent, EventCursor } from '../../../domain/agent-event'
 import type { Authenticator } from '../../../domain/authenticator'
 import type { DeviceSubscription } from '../../../domain/device-subscription'
 
@@ -18,16 +18,36 @@ export class InMemoryEventRepository implements EventRepository {
     return this.events.get(id) ?? null
   }
 
-  async listRecent(limit: number): Promise<AgentEvent[]> {
+  async listPage(after: EventCursor | null, limit: number): Promise<AgentEvent[]> {
+    // Same order as Postgres: newest first, then the larger id (lowercase uuids compare like bytes).
+    const newestFirst = (a: Pick<AgentEvent, 'receivedAt' | 'id'>, b: Pick<AgentEvent, 'receivedAt' | 'id'>) =>
+      b.receivedAt.getTime() - a.receivedAt.getTime() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
     return [...this.events.values()]
-      .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
+      .filter((e) => !after || newestFirst(after, e) < 0)
+      .sort(newestFirst)
       .slice(0, limit)
   }
 
+  async count(): Promise<number> {
+    return this.events.size
+  }
+
+  async delete(id: string): Promise<boolean> {
+    return this.events.delete(id)
+  }
+
+  async deleteUpTo(upTo: Date): Promise<number> {
+    return this.deleteWhere((event) => event.receivedAt <= upTo)
+  }
+
   async deleteBefore(cutoff: Date): Promise<number> {
+    return this.deleteWhere((event) => event.receivedAt < cutoff)
+  }
+
+  private deleteWhere(test: (event: AgentEvent) => boolean): number {
     let removed = 0
     for (const [id, event] of this.events) {
-      if (event.receivedAt < cutoff) {
+      if (test(event)) {
         this.events.delete(id)
         removed++
       }
