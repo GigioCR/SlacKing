@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { KindIcon } from './_components/EventBadge'
 import { BackIcon, BellOffIcon, CloseIcon, NextIcon, RetryIcon, TrashIcon } from './_components/Icons'
-import { InboxSkeleton, Splash } from './_components/Loading'
+import { Splash } from './_components/Loading'
 import { useToast } from './_components/Toast'
 import { api, ApiError, type AgentEventDto, type EventPage } from './_lib/api'
 import { onEventsChanged, readPushState, type PushState } from './_lib/push'
@@ -124,7 +124,8 @@ export default function InboxPage() {
     })
   }
 
-  if (!ready) return <Splash />
+  // The sloth stays until the page and the notifications banner are both known, so nothing pops in.
+  if (!ready || push === 'checking' || (!page && !error)) return <Splash />
 
   const start = pageIndex * PAGE_SIZE + 1
   const end = pageIndex * PAGE_SIZE + visible.length
@@ -143,7 +144,7 @@ export default function InboxPage() {
         )}
       </div>
 
-      {push !== 'on' && push !== 'checking' && (
+      {push !== 'on' && (
         <Link href="/setup" className="banner">
           <BellOffIcon size={20} />
           <span>Notifications are off on this device</span>
@@ -160,8 +161,6 @@ export default function InboxPage() {
           </button>
         </div>
       )}
-
-      {!page && !error && <InboxSkeleton />}
 
       {page && visible.length === 0 && pageIndex === 0 && (
         <div className="empty">

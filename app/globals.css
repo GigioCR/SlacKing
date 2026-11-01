@@ -17,7 +17,6 @@
   --danger: #c4281c;
   --danger-bg: #fdeceb;
   --radius: 14px;
-  --shimmer: rgb(0 0 0 / 0.06);
   --tabbar-h: 64px;
   color-scheme: light dark;
 }
@@ -38,7 +37,6 @@
     --ask-bg: #2c2210;
     --danger: #ff7b72;
     --danger-bg: #2d1514;
-    --shimmer: rgb(255 255 255 / 0.06);
   }
 }
 
@@ -659,58 +657,15 @@ label {
   flex: 1;
   min-height: 50dvh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-.skeleton {
-  border-radius: 8px;
-  background: linear-gradient(90deg, var(--shimmer) 25%, transparent 50%, var(--shimmer) 75%);
-  background-size: 300% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
-}
-
-.skeleton-row {
-  padding: 14px;
   gap: 12px;
-  animation: none;
 }
 
-.skeleton-row .event-body {
-  gap: 8px;
-}
-
-.skeleton-heading {
-  width: 30%;
-  height: 12px;
-  margin: 4px 2px 0;
-}
-
-.skeleton-dot {
-  flex: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-}
-
-.skeleton-line {
-  height: 12px;
-  width: 100%;
-}
-
-.skeleton-line.short {
-  width: 40%;
-}
-
-.skeleton-chip {
-  width: 84px;
-  height: 22px;
-  border-radius: 999px;
-}
-
-.skeleton-title {
-  width: 75%;
-  height: 26px;
+.splash-phrase {
+  font-size: 0.95rem;
+  animation: rise 0.3s ease-out both;
 }
 
 .spinner {
@@ -777,15 +732,6 @@ label {
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-}
-
-@keyframes shimmer {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: 0 0;
-  }
 }
 
 @keyframes spin {

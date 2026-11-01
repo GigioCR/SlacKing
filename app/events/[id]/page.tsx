@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { EventBadge } from '../../_components/EventBadge'
 import { BackIcon, CopyIcon, TrashIcon } from '../../_components/Icons'
-import { DetailSkeleton, Spinner, Splash } from '../../_components/Loading'
+import { Spinner, Splash } from '../../_components/Loading'
 import { useToast } from '../../_components/Toast'
 import { api, ApiError, type AgentEventDto } from '../../_lib/api'
 import { storage } from '../../_lib/storage'
@@ -56,7 +56,7 @@ export default function EventPage() {
     }
   }
 
-  if (!ready) return <Splash />
+  if (!ready || (!event && !error)) return <Splash />
 
   return (
     <>
@@ -74,7 +74,6 @@ export default function EventPage() {
           </Link>
         </div>
       )}
-      {!event && !error && <DetailSkeleton />}
 
       {event && (
         <>

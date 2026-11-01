@@ -8,25 +8,46 @@ import { CloseIcon, FingerprintIcon, KeyIcon } from './Icons'
 import { Spinner } from './Loading'
 import { useToast } from './Toast'
 
-/** The passkeys that can sign in, with adding one here and removing any. */
-export function PasskeysCard({ deviceLabel }: { deviceLabel: string }) {
-  const toast = useToast()
-  const [passkeys, setPasskeys] = useState<PasskeyDto[] | null>(null)
-  const [adding, setAdding] = useState(false)
-  const [supported, setSupported] = useState(true)
+export interface Passkeys {
+  /** Null until the first load finishes, and stays null if it failed. */
+  list: PasskeyDto[] | null
+  loaded: boolean
+  reload: () => Promise<void>
+}
 
-  const load = useCallback(async () => {
+/** The passkeys, loaded by the screen so it can keep the sloth up until they are here. */
+export function usePasskeys(ready: boolean): Passkeys {
+  const toast = useToast()
+  const [list, setList] = useState<PasskeyDto[] | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  const reload = useCallback(async () => {
     try {
-      setPasskeys((await api<{ passkeys: PasskeyDto[] }>('/api/passkeys')).passkeys)
+      setList((await api<{ passkeys: PasskeyDto[] }>('/api/passkeys')).passkeys)
     } catch (e) {
       toast({ message: (e as Error).message, tone: 'error' })
+    } finally {
+      setLoaded(true)
     }
   }, [toast])
 
   useEffect(() => {
+    if (ready) void reload()
+  }, [ready, reload])
+
+  return { list, loaded, reload }
+}
+
+/** The passkeys that can sign in, with adding one here and removing any. */
+export function PasskeysCard({ deviceLabel, keys }: { deviceLabel: string; keys: Passkeys }) {
+  const { list: passkeys, reload: load } = keys
+  const toast = useToast()
+  const [adding, setAdding] = useState(false)
+  const [supported, setSupported] = useState(true)
+
+  useEffect(() => {
     setSupported(supportsPasskeys())
-    void load()
-  }, [load])
+  }, [])
 
   async function add() {
     setAdding(true)
@@ -61,8 +82,6 @@ export function PasskeysCard({ deviceLabel }: { deviceLabel: string }) {
         Sign in with your fingerprint or screen lock instead of a code. On a computer, the browser shows a QR code to scan
         with this phone.
       </p>
-
-      {passkeys === null && <div className="skeleton skeleton-line" style={{ height: 44 }} />}
 
       {passkeys && passkeys.length > 0 && (
         <ul className="key-list">

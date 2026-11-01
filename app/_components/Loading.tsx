@@ -1,43 +1,49 @@
-// Loading states shaped like what is coming, so nothing jumps when it arrives.
+'use client'
 
-/** While the app checks whether this browser is signed in: the sloth, lounging and scratching its belly. */
+import { useEffect, useState } from 'react'
+
+// One loading state for every screen: the sloth stays until everything the screen needs has arrived.
+
+const PHRASES = [
+  'Loafing around',
+  'Scratching the belly',
+  'Stretching first',
+  'Hanging in there',
+  'Taking it slow',
+  'Five more minutes',
+  'Resting my eyes',
+  'Lounging with purpose',
+  'Contemplating a nap',
+  'Chewing a leaf',
+  'Yawning dramatically',
+  'Moving at sloth speed',
+  'Polishing the crown',
+  'Slacking, royally',
+]
+const PHRASE_MS = 2400
+
+function randomPhrase(not?: number): number {
+  const next = Math.floor(Math.random() * (PHRASES.length - 1))
+  return not === undefined || next < not ? next : next + 1
+}
+
+/** The sloth, lounging and scratching its belly, with a lazy phrase that changes every few seconds. */
 export function Splash() {
+  // Picked after mount so the server-rendered page and the browser agree.
+  const [phrase, setPhrase] = useState<number | null>(null)
+
+  useEffect(() => {
+    setPhrase(randomPhrase())
+    const timer = window.setInterval(() => setPhrase((p) => randomPhrase(p ?? undefined)), PHRASE_MS)
+    return () => window.clearInterval(timer)
+  }, [])
+
   return (
     <div className="splash" role="status" aria-label="Loading">
       <img className="splash-sloth" src="/sloth.svg" alt="" width={160} height={96} />
-    </div>
-  )
-}
-
-/** Placeholder rows for the inbox. */
-export function InboxSkeleton({ rows = 6 }: { rows?: number }) {
-  return (
-    <div className="inbox" role="status" aria-label="Loading notifications">
-      <div className="skeleton skeleton-heading" />
-      {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="event skeleton-row">
-          <div className="skeleton skeleton-dot" />
-          <div className="event-body">
-            <div className="skeleton skeleton-line" style={{ width: `${55 + ((i * 17) % 30)}%` }} />
-            <div className="skeleton skeleton-line" />
-            <div className="skeleton skeleton-line short" />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** Placeholder for one notification's screen. */
-export function DetailSkeleton() {
-  return (
-    <div className="card" role="status" aria-label="Loading notification">
-      <div className="skeleton skeleton-chip" />
-      <div className="skeleton skeleton-title" />
-      <div className="skeleton skeleton-line short" />
-      <div className="skeleton skeleton-line" />
-      <div className="skeleton skeleton-line" />
-      <div className="skeleton skeleton-line" style={{ width: '70%' }} />
+      <p className="splash-phrase muted" aria-hidden key={phrase ?? -1}>
+        {phrase === null ? ' ' : `${PHRASES[phrase]}…`}
+      </p>
     </div>
   )
 }

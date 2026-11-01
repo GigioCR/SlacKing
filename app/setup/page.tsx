@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Spinner, Splash } from '../_components/Loading'
-import { PasskeysCard } from '../_components/PasskeysCard'
+import { PasskeysCard, usePasskeys } from '../_components/PasskeysCard'
 import { useToast } from '../_components/Toast'
 import { api } from '../_lib/api'
 import { disablePush, enablePush, isStandalone, readPushState, type PushState } from '../_lib/push'
@@ -46,6 +46,7 @@ export default function SetupPage() {
   const [label, setLabel] = useState('')
   const [busy, setBusy] = useState<Busy>(null)
   const [installed, setInstalled] = useState(true)
+  const passkeys = usePasskeys(ready)
 
   useEffect(() => {
     if (!ready) return
@@ -92,7 +93,7 @@ export default function SetupPage() {
       router.replace('/sign-in')
     })
 
-  if (!ready) return <Splash />
+  if (!ready || state === 'checking' || !passkeys.loaded) return <Splash />
 
   const chip = STATE_CHIP[state]
 
@@ -144,7 +145,7 @@ export default function SetupPage() {
         )}
       </section>
 
-      <PasskeysCard deviceLabel={label} />
+      <PasskeysCard deviceLabel={label} keys={passkeys} />
 
       {!installed && (
         <section className="card">
