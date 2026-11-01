@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Spinner, Splash } from '../_components/Loading'
+import { PasskeysCard } from '../_components/PasskeysCard'
 import { useToast } from '../_components/Toast'
 import { api } from '../_lib/api'
 import { disablePush, enablePush, isStandalone, readPushState, type PushState } from '../_lib/push'
@@ -142,6 +143,8 @@ export default function SetupPage() {
           </div>
         )}
       </section>
+
+      <PasskeysCard deviceLabel={label} />
 
       {!installed && (
         <section className="card">

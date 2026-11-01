@@ -1,3 +1,4 @@
+import type { RelyingParty } from '@/src/application/ports/passkey-ceremonies'
 import type { IssuedSession } from '@/src/application/ports/session-tokens'
 import { getContainer } from '@/src/container'
 import { InvalidInputError } from '@/src/domain/errors'
@@ -59,6 +60,15 @@ export function withoutSessionCookie(response: Response): Response {
   return response
 }
 
+/**
+ * The site passkeys belong to: APP_ORIGIN if set, else the address this request came to. The
+ * browser itself refuses to use a passkey on any other site; this is the server's matching check.
+ */
+export function relyingParty(request: Request): RelyingParty {
+  const origin = getContainer().config.appOrigin ?? new URL(request.url).origin
+  return { id: new URL(origin).hostname, origin }
+}
+
 /** The bearer token of an Authorization header, or null. */
 export function bearerToken(request: Request): string | null {
   const header = request.headers.get('authorization') ?? ''
@@ -71,6 +81,7 @@ export function bearerToken(request: Request): string | null {
 const STATUS_BY_ERROR: Record<string, number> = {
   InvalidInputError: 400,
   WrongCodeError: 401,
+  PasskeyRejectedError: 401,
   EventNotFoundError: 404,
   NotEnrolledError: 409,
   SignInLockedError: 429,

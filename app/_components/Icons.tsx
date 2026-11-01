@@ -85,6 +85,25 @@ export const CopyIcon = (p: IconProps) => (
   </Svg>
 )
 
+export const FingerprintIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 4.5A9 9 0 0 1 21 12v1" />
+    <path d="M3 12a9 9 0 0 1 1.5-5" />
+    <path d="M7 12a5 5 0 0 1 10 0v1.5a10 10 0 0 1-1 4.5" />
+    <path d="M12 12v2a14 14 0 0 1-2 7" />
+    <path d="M3.5 16a14 14 0 0 0 .5-4" />
+    <path d="M7.5 20.5A10 10 0 0 0 9 14v-2a3 3 0 0 1 3-3" />
+    <path d="M19.5 16.5a18 18 0 0 1-1 4" />
+  </Svg>
+)
+
+export const KeyIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="15" r="4" />
+    <path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2" />
+  </Svg>
+)
+
 export const RetryIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />

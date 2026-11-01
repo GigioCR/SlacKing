@@ -40,6 +40,14 @@ export class SignInLockedError extends Error {
   }
 }
 
+/** A passkey answer that doesn't check out: unknown key, wrong site, expired or reused prompt. */
+export class PasskeyRejectedError extends Error {
+  constructor(message = "That passkey wasn't accepted. Try again, or use a code from Microsoft Authenticator.") {
+    super(message)
+    this.name = 'PasskeyRejectedError'
+  }
+}
+
 /** Sign-in was attempted before an authenticator app was linked. */
 export class NotEnrolledError extends Error {
   constructor() {

@@ -94,7 +94,21 @@ you link a new phone if you lose this one.
    notification may not land on its summary.
 4. **This phone → Turn on notifications**, allow them, then **Send a test notification**.
 
-Sessions last 30 days. Linking a new authenticator signs every browser out.
+5. Optional: **This phone → Add a passkey on this device**. From then on, signing in is
+   **Sign in with passkey** and a fingerprint. On a computer, the browser shows a QR code to scan
+   with the phone. The authenticator code always works too.
+
+A session lasts until 30 days after you last opened the app. Linking a new authenticator signs
+every browser out and removes all passkeys (that's the way back in after losing the phone).
+
+### Updating the database
+
+When a release adds a file to `migrations/`, run the migration on Supabase **before** that
+release deploys (the new code expects the new tables):
+
+```powershell
+$env:DATABASE_URL = "<session pooler string>"; npm run migrate; Remove-Item Env:DATABASE_URL
+```
 
 ### 5. The hook on your computer
 

@@ -14,6 +14,11 @@ export interface AppConfig {
   /** Seals the authenticator secret before it is stored. */
   encryptionKey: string | null
   vapid: VapidConfig | null
+  /**
+   * The app's public address, e.g. https://slac-king.vercel.app. Passkeys belong to it. Without
+   * it, each request's own address is used, which is right unless a proxy rewrites the host.
+   */
+  appOrigin: string | null
   /** Problems worth logging at startup. Never contains secret values. */
   warnings: string[]
 }
@@ -53,5 +58,19 @@ export function loadConfig(env: Env): AppConfig {
   const vapid = publicKey && privateKey && subject ? { publicKey, privateKey, subject } : null
   if (!vapid) warnings.push('VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT must all be set to send notifications')
 
-  return { databaseUrl, databaseCaCert, webhookSecret, setupCode, sessionSecret, encryptionKey, vapid, warnings }
+  const appOrigin = parseOrigin(nonEmpty(env.APP_ORIGIN), warnings)
+
+  return { databaseUrl, databaseCaCert, webhookSecret, setupCode, sessionSecret, encryptionKey, vapid, appOrigin, warnings }
+}
+
+function parseOrigin(raw: string | null, warnings: string[]): string | null {
+  if (!raw) return null
+  try {
+    const url = new URL(raw)
+    if (url.protocol === 'https:' || url.hostname === 'localhost') return url.origin
+  } catch {
+    // Reported below.
+  }
+  warnings.push('APP_ORIGIN must be the https address of the app, e.g. https://slac-king.vercel.app; ignored')
+  return null
 }

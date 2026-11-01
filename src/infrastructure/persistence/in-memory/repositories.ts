@@ -1,11 +1,58 @@
 import type { AuthenticatorRepository } from '../../../application/ports/authenticator-repository'
 import type { EventRepository } from '../../../application/ports/event-repository'
+import type { ChallengeStore, PasskeyRepository } from '../../../application/ports/passkey-repository'
 import type { SubscriptionRepository } from '../../../application/ports/subscription-repository'
 import type { AgentEvent, EventCursor } from '../../../domain/agent-event'
 import type { Authenticator } from '../../../domain/authenticator'
 import type { DeviceSubscription } from '../../../domain/device-subscription'
+import type { CeremonyPurpose, Passkey } from '../../../domain/passkey'
 
 // Used when DATABASE_URL is not set (local development) and in tests. Lost on restart.
+
+export class InMemoryPasskeyRepository implements PasskeyRepository {
+  private readonly byId = new Map<string, Passkey>()
+
+  async list(): Promise<Passkey[]> {
+    return [...this.byId.values()].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+  }
+
+  async find(id: string): Promise<Passkey | null> {
+    return this.byId.get(id) ?? null
+  }
+
+  async add(passkey: Passkey): Promise<void> {
+    this.byId.set(passkey.id, passkey)
+  }
+
+  async recordUse(id: string, counter: number, at: Date): Promise<void> {
+    const passkey = this.byId.get(id)
+    if (passkey) this.byId.set(id, { ...passkey, counter, lastUsedAt: at })
+  }
+
+  async remove(id: string): Promise<boolean> {
+    return this.byId.delete(id)
+  }
+
+  async removeAll(): Promise<number> {
+    const count = this.byId.size
+    this.byId.clear()
+    return count
+  }
+}
+
+export class InMemoryChallengeStore implements ChallengeStore {
+  private readonly byChallenge = new Map<string, { purpose: CeremonyPurpose; expiresAt: Date }>()
+
+  async save(challenge: string, purpose: CeremonyPurpose, expiresAt: Date): Promise<void> {
+    this.byChallenge.set(challenge, { purpose, expiresAt })
+  }
+
+  async take(challenge: string, purpose: CeremonyPurpose, now: Date): Promise<boolean> {
+    const entry = this.byChallenge.get(challenge)
+    this.byChallenge.delete(challenge)
+    return Boolean(entry && entry.purpose === purpose && entry.expiresAt > now)
+  }
+}
 
 export class InMemoryEventRepository implements EventRepository {
   private readonly events = new Map<string, AgentEvent>()

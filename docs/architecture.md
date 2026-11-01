@@ -37,12 +37,35 @@ it and opens `/events/{id}` on a tap (with the Cache Storage hand-off for a clos
    in the database, so it holds across Vercel's instances.
 3. *Session.* An HMAC-SHA256 signed token (`SESSION_SECRET`) with the generation and a 30-day expiry,
    in an `HttpOnly; Secure; SameSite=Lax` cookie. Every API call except the webhook, the sign-in
-   routes and health checks it, including that its generation is still the linked one.
+   routes and health checks it, including that its generation is still the linked one. Sessions
+   slide: `/api/auth/status`, asked on every screen load, issues a fresh 30 days once a session is
+   a day old (`src/domain/session.ts`), so it only runs out after 30 days without opening the app.
+
+**Passkeys (WebAuthn).** Optional, added on This phone once signed in; the code stays as the backup.
+
+1. *Add.* `startPasskeyRegistration` asks `@simplewebauthn/server` for creation options: the site
+   (rpID = the app's host, `APP_ORIGIN` or the request's), a discoverable key, user verification
+   required (fingerprint or screen lock). The random challenge goes into `webauthn_challenges` for
+   5 minutes. The phone makes a key pair; `finishPasskeyRegistration` checks the answer (origin,
+   site, challenge, user verified) and keeps only the public key in `passkeys`.
+2. *Sign in.* `startPasskeySignIn` issues a fresh challenge listing the stored passkeys. The phone
+   signs it after a fingerprint; on a computer, Chrome shows a QR code for the phone instead
+   (WebAuthn "hybrid": phone and computer also check they are near each other over Bluetooth).
+   `finishPasskeySignIn` finds the passkey, checks the signature with its public key, and *takes*
+   the challenge (a delete, so an answer works once), refuses a counter that went backwards (a
+   copied key), and issues a session with the linked authenticator's generation.
+3. *Recovery.* Linking a new authenticator (with `SETUP_CODE`) removes every passkey, because that
+   is how someone gets back in after losing the phone that held them.
+
+The adapter is `src/infrastructure/passkeys/simplewebauthn-ceremonies.ts`, behind the
+`PasskeyCeremonies` port. `tests/passkey-ceremonies.test.ts` runs it against a software
+authenticator (real P-256 keys and signatures), including answers made for another site.
 
 ## Storage
 
 Supabase Postgres through `pg` and Supabase's transaction pooler (fits serverless). Tables in
-`migrations/001_initial.sql`: `agent_events`, `device_subscriptions`, `authenticator` (one row).
+`migrations/`: `agent_events`, `device_subscriptions`, `authenticator` (one row) in 001;
+`passkeys` and `webauthn_challenges` in 002.
 Row level security is on with no policies and the Data API roles lose their grants, so only the
 app's own connection can read them. Without `DATABASE_URL` the in-memory repositories are used.
 

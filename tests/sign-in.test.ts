@@ -9,7 +9,10 @@ import { startLinking } from '../src/application/use-cases/start-linking'
 import { LOCK_MS, MAX_FAILED_ATTEMPTS } from '../src/domain/authenticator'
 import { HmacSessionTokens } from '../src/infrastructure/auth/hmac-session-tokens'
 import { AesGcmSecretBox } from '../src/infrastructure/crypto/secret-box'
-import { InMemoryAuthenticatorRepository } from '../src/infrastructure/persistence/in-memory/repositories'
+import {
+  InMemoryAuthenticatorRepository,
+  InMemoryPasskeyRepository,
+} from '../src/infrastructure/persistence/in-memory/repositories'
 import { OtpauthCodes } from '../src/infrastructure/totp/otpauth-codes'
 
 // What the authenticator app on the phone would show for `secret` at `at`.
@@ -35,6 +38,7 @@ function setup() {
   const clock = new FakeClock(new Date('2026-10-27T12:00:05Z'))
   const deps = {
     authenticators: new InMemoryAuthenticatorRepository(),
+    passkeys: new InMemoryPasskeyRepository(),
     codes: new OtpauthCodes(),
     secrets: new AesGcmSecretBox('test-encryption-key-that-is-long-enough'),
     sessions: new HmacSessionTokens('test-session-secret-that-is-long-enough'),
@@ -70,13 +74,13 @@ describe('linking an authenticator app', () => {
   it('links once a code from the app is entered, and signs this browser in', async () => {
     const { secret } = await s.start()
     const session = await s.confirm(codeAt(secret, s.clock.now()))
-    expect(await s.check(session.token)).toEqual({ linked: true, signedIn: true })
+    expect(await s.check(session.token)).toMatchObject({ linked: true, signedIn: true })
   })
 
   it('refuses a wrong confirmation code and keeps the app unlinked', async () => {
     await s.start()
     await expect(s.confirm('000000')).rejects.toThrow(/not right/)
-    expect(await s.check(null)).toEqual({ linked: false, signedIn: false })
+    expect(await s.check(null)).toMatchObject({ linked: false, signedIn: false })
   })
 
   it('signs out sessions from the old app when another one is linked', async () => {
@@ -89,6 +93,18 @@ describe('linking an authenticator app', () => {
     const newSession = await s.confirm(codeAt(second.secret, s.clock.now()))
     expect((await s.check(oldSession.token)).signedIn).toBe(false)
     expect((await s.check(newSession.token)).signedIn).toBe(true)
+  })
+
+  it("removes the old phone's passkeys when another app is linked, but not on the first link", async () => {
+    const passkey = { id: 'p', publicKey: 'k', counter: 0, transports: [], label: 'Old phone', createdAt: s.clock.now(), lastUsedAt: null }
+    await s.deps.passkeys.add(passkey)
+    const first = await s.start()
+    await s.confirm(codeAt(first.secret, s.clock.now()))
+    expect(await s.deps.passkeys.list()).toHaveLength(1)
+    s.clock.advance(60_000)
+    const second = await s.start()
+    await s.confirm(codeAt(second.secret, s.clock.now()))
+    expect(await s.deps.passkeys.list()).toHaveLength(0)
   })
 })
 

@@ -1,5 +1,13 @@
 import type { SessionTokens } from './application/ports/session-tokens'
-import { checkSession } from './application/use-cases/check-session'
+import { checkSession, getAuthStatus } from './application/use-cases/check-session'
+import {
+  finishPasskeyRegistration,
+  finishPasskeySignIn,
+  listPasskeys,
+  removePasskey,
+  startPasskeyRegistration,
+  startPasskeySignIn,
+} from './application/use-cases/passkeys'
 import { clearEvent, clearEvents } from './application/use-cases/clear-events'
 import { confirmLinking } from './application/use-cases/confirm-linking'
 import { getEvent } from './application/use-cases/get-event'
@@ -14,13 +22,17 @@ import { HmacSessionTokens } from './infrastructure/auth/hmac-session-tokens'
 import { secretsMatch } from './infrastructure/auth/secret-compare'
 import { loadConfig, type AppConfig } from './infrastructure/config/env'
 import { AesGcmSecretBox } from './infrastructure/crypto/secret-box'
+import { SimpleWebAuthnCeremonies } from './infrastructure/passkeys/simplewebauthn-ceremonies'
 import {
   InMemoryAuthenticatorRepository,
+  InMemoryChallengeStore,
   InMemoryEventRepository,
+  InMemoryPasskeyRepository,
   InMemorySubscriptionRepository,
 } from './infrastructure/persistence/in-memory/repositories'
 import { PostgresAuthenticatorRepository } from './infrastructure/persistence/postgres/authenticator-repository'
 import { PostgresEventRepository } from './infrastructure/persistence/postgres/event-repository'
+import { PostgresChallengeStore, PostgresPasskeyRepository } from './infrastructure/persistence/postgres/passkey-repository'
 import { createPool } from './infrastructure/persistence/postgres/pool'
 import { PostgresSubscriptionRepository } from './infrastructure/persistence/postgres/subscription-repository'
 import { DisabledNotifier, WebPushNotifier } from './infrastructure/push/web-push-notifier'
@@ -47,13 +59,18 @@ function build(config: AppConfig) {
   const notifier = config.vapid ? new WebPushNotifier(config.vapid) : new DisabledNotifier()
   const sessions = config.sessionSecret ? new HmacSessionTokens(config.sessionSecret) : noSessions
   const secrets = config.encryptionKey ? new AesGcmSecretBox(config.encryptionKey) : null
+  const passkeys = pool ? new PostgresPasskeyRepository(pool) : new InMemoryPasskeyRepository()
+  const challenges = pool ? new PostgresChallengeStore(pool) : new InMemoryChallengeStore()
   const authDeps = { authenticators, codes: new OtpauthCodes(), secrets, sessions, clock: systemClock }
+  const passkeyDeps = { passkeys, challenges, ceremonies: new SimpleWebAuthnCeremonies(), authenticators, sessions, clock: systemClock }
   const notifyDeps = { subscriptions, notifier }
 
   return {
     config: {
       vapidPublicKey: config.vapid?.publicKey ?? null,
       persistent: pool !== null,
+      /** APP_ORIGIN when set; otherwise the address each request came to (see app/api/_lib/http.ts). */
+      appOrigin: config.appOrigin,
     },
     auth: {
       isWebhookSecretValid: (provided: string | null) => secretsMatch(config.webhookSecret, provided),
@@ -69,9 +86,16 @@ function build(config: AppConfig) {
       unsubscribeDevice: unsubscribeDevice({ subscriptions }),
       sendTestNotification: sendTestNotification(notifyDeps),
       startLinking: startLinking({ ...authDeps, qr: qrcodeRenderer }),
-      confirmLinking: confirmLinking(authDeps),
+      confirmLinking: confirmLinking({ ...authDeps, passkeys }),
       signIn: signIn(authDeps),
       checkSession: checkSession(authDeps),
+      getAuthStatus: getAuthStatus({ ...authDeps, passkeys }),
+      startPasskeyRegistration: startPasskeyRegistration(passkeyDeps),
+      finishPasskeyRegistration: finishPasskeyRegistration(passkeyDeps),
+      startPasskeySignIn: startPasskeySignIn(passkeyDeps),
+      finishPasskeySignIn: finishPasskeySignIn(passkeyDeps),
+      listPasskeys: listPasskeys(passkeyDeps),
+      removePasskey: removePasskey(passkeyDeps),
     },
   }
 }

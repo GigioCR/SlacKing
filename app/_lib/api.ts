@@ -46,6 +46,8 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 export interface AuthStatus {
   linked: boolean
   signedIn: boolean
+  /** How many passkeys exist; the sign-in screen offers one when there are any. */
+  passkeys: number
 }
 
 export interface EventPage {
