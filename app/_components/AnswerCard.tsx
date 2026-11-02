@@ -179,15 +179,9 @@ function QuestionsAnswer({ questions, busy, send, left }: AnswerProps & { questi
   // Per question: the chosen option labels, and anything typed instead.
   const [chosen, setChosen] = useState<Record<string, string[]>>({})
   const [typed, setTyped] = useState<Record<string, string>>({})
-  // One question with one answer: tapping an option is the answer, no Send needed.
-  const oneTap = questions.length === 1 && !questions[0].multiSelect
 
+  // Tapping an option only picks it; nothing goes to Claude until Send, so a stray tap can be undone.
   function toggle(q: Question, label: string) {
-    if (oneTap) {
-      setChosen({ [q.question]: [label] })
-      void send({ type: 'answers', answers: { [q.question]: label } }, `option:${label}`)
-      return
-    }
     setChosen((c) => {
       const current = c[q.question] ?? []
       if (!q.multiSelect) return { ...c, [q.question]: [label] }
@@ -208,11 +202,8 @@ function QuestionsAnswer({ questions, busy, send, left }: AnswerProps & { questi
     answers[q.question] = [...(chosen[q.question] ?? []), typed[q.question]?.trim() ?? ''].filter(Boolean).join(', ')
   }
   const missing = questions.filter((q) => !answers[q.question]).length
-  const sendLabel = oneTap
-    ? missing
-      ? 'Tap an option, or type an answer'
-      : 'Send answer'
-    : missing === 0
+  const sendLabel =
+    missing === 0
       ? `Send ${questions.length === 1 ? 'answer' : 'answers'}`
       : questions.length === 1
         ? 'Pick an answer first'
@@ -259,7 +250,6 @@ function QuestionsAnswer({ questions, busy, send, left }: AnswerProps & { questi
                     <span className="choice-label">{option.label}</span>
                     {option.description && <span className="muted small">{option.description}</span>}
                   </span>
-                  {busy === `option:${option.label}` && <Spinner />}
                 </button>
               )
             })}
