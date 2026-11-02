@@ -9,7 +9,8 @@
 //
 // 1. Copies hook/notify.mjs to ~/.claude/hooks/slacking-notify.mjs.
 // 2. Writes the app's address and webhook secret to ~/.claude/hooks/slacking.json, keeping
-//    "answers" (false: notify only) and "waitMinutes" (how long to wait for the phone) if set.
+//    "answers" (false: notify only), "waitMinutes" (how long to wait for the phone) and
+//    "contextWindow" (the model's window, for the context percentage) if set.
 // 3. Adds the hook to ~/.claude/settings.json next to any hooks already there (a backup is saved
 //    first), and removes it from anywhere else an earlier version put it:
 //    - Stop, in the background with asyncRewake, so a reply from the phone can wake Claude.
@@ -54,9 +55,10 @@ try {
 }
 const answers = previous.answers !== false
 const waitMinutes = Number(previous.waitMinutes) > 0 ? Number(previous.waitMinutes) : DEFAULT_WAIT_MINUTES
+const contextWindow = Number.isSafeInteger(previous.contextWindow) && previous.contextWindow > 0 ? previous.contextWindow : undefined
 
 copyFileSync(fileURLToPath(new URL('../hook/notify.mjs', import.meta.url)), hookFile)
-writeFileSync(configFile, JSON.stringify({ url, secret, answers, waitMinutes }, null, 2) + '\n')
+writeFileSync(configFile, JSON.stringify({ url, secret, answers, waitMinutes, contextWindow }, null, 2) + '\n')
 console.log(`[hook] copied the hook to ${hookFile}`)
 console.log(`[hook] saved the address and secret to ${configFile}`)
 
