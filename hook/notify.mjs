@@ -34,7 +34,8 @@ const WOKE_DIR = join(HOOK_DIR, 'slacking-woke')
 
 // Only the end of a long log is read; titles are written all through it and the last turn is at the end.
 const TAIL_BYTES = 2 * 1024 * 1024
-const SUMMARY_MAX = 1_500
+// Long ones fold behind Show more on the phone; keep in step with LIMITS.summary in src/domain/agent-event.ts.
+const SUMMARY_MAX = 6_000
 const TIMEOUT_MS = 8_000
 const POLL_MS = 2_000
 export const DEFAULT_WAIT_MINUTES = 30

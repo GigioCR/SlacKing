@@ -41,7 +41,8 @@ export const LIMITS = {
   sessionId: 100,
   sessionTitle: 120,
   project: 120,
-  summary: 2_000,
+  // The hook cuts at the same length (SUMMARY_MAX in hook/notify.mjs); plans arrive whole.
+  summary: 6_000,
 } as const
 
 /** Trims, collapses runs of spaces (not newlines) and cuts to `max` characters with an ellipsis. */

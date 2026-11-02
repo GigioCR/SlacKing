@@ -37,8 +37,8 @@ describe('parseAgentEventInput', () => {
   })
 
   it('cuts a long summary instead of refusing it', () => {
-    const summary = parseAgentEventInput({ kind: 'finished', sessionId: 'a', summary: 'x'.repeat(5_000) }).summary
-    expect(summary).toHaveLength(2_000)
+    const summary = parseAgentEventInput({ kind: 'finished', sessionId: 'a', summary: 'x'.repeat(9_000) }).summary
+    expect(summary).toHaveLength(6_000)
     expect(summary.endsWith('…')).toBe(true)
   })
 })
