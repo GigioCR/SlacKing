@@ -7,6 +7,7 @@ import { AnswerCard } from '../../_components/AnswerCard'
 import { EventBadge } from '../../_components/EventBadge'
 import { BackIcon, CopyIcon, TrashIcon } from '../../_components/Icons'
 import { Spinner, Splash } from '../../_components/Loading'
+import { CollapsibleMarkdown } from '../../_components/Markdown'
 import { useToast } from '../../_components/Toast'
 import { api, ApiError, type AgentEventDto } from '../../_lib/api'
 import { onEventsChanged } from '../../_lib/push'
@@ -106,7 +107,7 @@ export default function EventPage() {
               {event.project && <span>{event.project}</span>}
               <span>{fullTime(event.receivedAt)}</span>
             </div>
-            <p className="summary">{event.summary}</p>
+            <CollapsibleMarkdown text={event.summary} />
             {event.promptState === 'none' && (
               <p className="muted small">
                 {event.kind === 'needs-input'

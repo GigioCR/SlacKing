@@ -1,4 +1,5 @@
 import { clip, type AgentEvent } from '../domain/agent-event'
+import { markdownToPlainText } from '../domain/plain-text'
 import type { Reply } from '../domain/prompt'
 
 /**
@@ -73,7 +74,7 @@ export function eventMessage(event: AgentEvent): NotificationMessage {
   return {
     kind: event.kind,
     title: `${HEADLINE[event.kind]}: ${event.sessionTitle}${where}`,
-    body: clip(event.summary, BODY_MAX),
+    body: clip(markdownToPlainText(event.summary), BODY_MAX),
     tag: `session:${event.sessionId}`,
     url: `/events/${event.id}`,
     actions,

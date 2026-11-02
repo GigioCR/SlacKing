@@ -12,6 +12,7 @@ import { storage } from './_lib/storage'
 import { clockTime, dayLabel } from './_lib/time'
 import { useRequireSignIn } from './_lib/use-auth'
 import { useDeferredClear } from './_lib/use-deferred-clear'
+import { markdownToPlainText } from '@/src/domain/plain-text'
 
 // Without a push (notifications off), the first page still catches up on its own.
 const REFRESH_MS = 30_000
@@ -180,7 +181,7 @@ export default function InboxPage() {
                   <KindIcon kind={event.kind} />
                   <span className="event-body">
                     <span className="event-title">{event.sessionTitle}</span>
-                    <span className="event-summary">{event.summary}</span>
+                    <span className="event-summary">{markdownToPlainText(event.summary)}</span>
                     <span className="meta">
                       {event.promptState === 'open' && <span className="waiting">Waiting for you</span>}
                       {event.promptState === 'answered' && <span>Answered</span>}
