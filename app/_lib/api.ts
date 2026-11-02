@@ -22,18 +22,30 @@ interface ApiOptions {
   expectUnauthorized?: boolean
 }
 
+// A phone coming back to the app often has no network for a moment, so a read that can't reach
+// the server tries again before saying so. Answers and other changes are not repeated.
+const READ_RETRY_MS = [1_000, 2_000, 4_000]
+
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  let response: Response
-  try {
-    response = await fetch(path, {
-      method: options.method ?? 'GET',
+  const method = options.method ?? 'GET'
+  const send = () =>
+    fetch(path, {
+      method,
       headers: options.body === undefined ? undefined : { 'content-type': 'application/json' },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       credentials: 'same-origin',
       cache: 'no-store',
     })
-  } catch {
-    throw new ApiError(0, 'Could not reach the server. Check your connection.')
+
+  let response: Response | null = null
+  for (let attempt = 0; !response; attempt++) {
+    try {
+      response = await send()
+    } catch {
+      const wait = method === 'GET' ? READ_RETRY_MS[attempt] : undefined
+      if (wait === undefined) throw new ApiError(0, 'Could not reach the server. Check your connection.')
+      await backOnline(wait)
+    }
   }
 
   const data: unknown = await response.json().catch(() => null)
@@ -43,6 +55,19 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     throw new ApiError(response.status, message ?? `Request failed (${response.status})`)
   }
   return data as T
+}
+
+/** Waits `ms`, or less when the browser says the network is back. */
+function backOnline(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('online', done)
+      resolve()
+    }
+    const timer = window.setTimeout(done, ms)
+    window.addEventListener('online', done)
+  })
 }
 
 export interface AuthStatus {

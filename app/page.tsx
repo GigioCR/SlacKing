@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ContextNote } from './_components/ContextNote'
 import { CLOSED_LABEL, KindIcon } from './_components/EventBadge'
 import { BackIcon, BellOffIcon, CloseIcon, NextIcon, RetryIcon, TrashIcon } from './_components/Icons'
@@ -28,6 +28,8 @@ export default function InboxPage() {
   const [cursors, setCursors] = useState<(string | null)[]>([null])
   const [page, setPage] = useState<EventPage | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // When the list on screen was loaded, to say how old it is when a refresh fails.
+  const [loadedAt, setLoadedAt] = useState<string | null>(null)
   const [push, setPush] = useState<PushState>('checking')
   const [seen, setSeen] = useState<Set<string>>(new Set())
   const [, setMinute] = useState(0)
@@ -35,22 +37,38 @@ export default function InboxPage() {
   const pageIndex = cursors.length - 1
   const cursor = cursors[pageIndex]
 
+  // Loads overlap (a push, the timer, coming back to the app); only the newest one's outcome shows,
+  // so a slow failure can't cover a list that has since loaded.
+  const latestLoad = useRef(0)
+
   const load = useCallback(async () => {
+    const mine = ++latestLoad.current
     try {
       const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
       const next = await api<EventPage>(`/api/events${query}`)
+      if (mine !== latestLoad.current) return
       // Everything on a later page was cleared: show the page before it instead.
       if (next.events.length === 0 && cursor) {
         setCursors((c) => (c.length > 1 ? c.slice(0, -1) : c))
         return
       }
       setPage(next)
+      setLoadedAt(new Date().toISOString())
       eventCache.remember(next.events)
       setError(null)
     } catch (e) {
+      if (mine !== latestLoad.current) return
       if (!(e instanceof ApiError && e.status === 401)) setError((e as Error).message)
     }
   }, [cursor])
+
+  // Coming back to the app, or Try again: what is on screen may be out of date, so the sloth shows
+  // until the server answers, and then the latest list or why it couldn't be loaded.
+  const reload = useCallback(() => {
+    setPage(null)
+    setError(null)
+    void load()
+  }, [load])
 
   const deferred = useDeferredClear(load)
 
@@ -68,7 +86,7 @@ export default function InboxPage() {
     const stop = onEventsChanged(() => void load())
     const timer = window.setInterval(() => void load(), REFRESH_MS)
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void load()
+      if (document.visibilityState === 'visible') reload()
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
@@ -76,7 +94,7 @@ export default function InboxPage() {
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [ready, load, pageIndex])
+  }, [ready, load, reload, pageIndex])
 
   // "5 min ago"-style text stays right while the screen is open.
   useEffect(() => {
@@ -162,8 +180,10 @@ export default function InboxPage() {
 
       {error && (
         <div className="card error-card">
-          <p>{error}</p>
-          <button type="button" className="button secondary" onClick={() => void load()}>
+          <p>
+            {page && loadedAt ? `Couldn't refresh. ${error} Showing the list from ${clockTime(loadedAt)}.` : error}
+          </p>
+          <button type="button" className="button secondary" onClick={reload}>
             <RetryIcon size={18} />
             Try again
           </button>
