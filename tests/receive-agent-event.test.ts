@@ -67,8 +67,8 @@ describe('receiveAgentEvent', () => {
 
   it('deletes notifications older than seven days', async () => {
     const s = await setup()
-    await s.events.add({ ...body, kind: 'finished', id: 'old', receivedAt: new Date('2026-10-19T00:00:00Z'), ...NO_PROMPT })
-    await s.events.add({ ...body, kind: 'finished', id: 'recent', receivedAt: new Date('2026-10-21T00:00:00Z'), ...NO_PROMPT })
+    await s.events.add({ ...body, kind: 'finished', context: null, id: 'old', receivedAt: new Date('2026-10-19T00:00:00Z'), ...NO_PROMPT })
+    await s.events.add({ ...body, kind: 'finished', context: null, id: 'recent', receivedAt: new Date('2026-10-21T00:00:00Z'), ...NO_PROMPT })
     const result = await s.receive(body)
     expect(result.pruned).toBe(1)
     expect(await s.events.get('old')).toBeNull()

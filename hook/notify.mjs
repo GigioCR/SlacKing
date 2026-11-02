@@ -17,7 +17,7 @@
 //   A reply wakes Claude with it (exit 2, the reply on stderr). A new message typed at the
 //   computer ends the wait.
 //
-// Settings, from ~/.claude/hooks/slacking.json ({ "url", "secret", "answers", "waitMinutes" }) or
+// Settings, from ~/.claude/hooks/slacking.json ({ "url", "secret", "answers", "waitMinutes", "contextWindow" }) or
 // the environment (SLACKING_URL, SLACKING_WEBHOOK_SECRET). "answers": false only notifies. It
 // never fails the hook: problems are written to ~/.claude/hooks/slacking-notify.log.
 
@@ -146,6 +146,40 @@ export function lastTurnSummary(entries) {
   return ''
 }
 
+// How many tokens a session can hold. Claude Code doesn't write it to the log, so it goes by the
+// model; "contextWindow" in slacking.json overrides it.
+const STANDARD_WINDOW = 200_000
+const LARGE_WINDOW = 1_000_000
+
+function windowFor(models, usedTokens, configured) {
+  if (configured) return configured
+  // "[1m]" asks for the long context; Opus 5 has it as standard. A session already past the
+  // standard window must have the long one.
+  if (models.some((m) => /\[1m\]$/i.test(m) || /^claude-opus-5/.test(m)) || usedTokens > STANDARD_WINDOW) return LARGE_WINDOW
+  return STANDARD_WINDOW
+}
+
+/**
+ * How full the session's context is: what Claude's last reply was given to read (its input,
+ * cached or not), out of the model's window. Null when no reply since the last compaction says.
+ */
+export function contextUsage(entries, { contextWindow } = {}) {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i]
+    if (e.type === 'system' && e.subtype === 'compact_boundary') return null
+    if (e.type !== 'assistant' || e.isSidechain) continue
+    const usage = e.message?.usage
+    const usedTokens = ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens']
+      .map((key) => Number(usage?.[key]) || 0)
+      .reduce((a, b) => a + b, 0)
+    // Messages Claude Code writes itself ("<synthetic>") have no usage.
+    if (!usedTokens) continue
+    const models = [e.requestedModel, e.message?.model].filter((m) => typeof m === 'string')
+    return { usedTokens, windowTokens: windowFor(models, usedTokens, contextWindow) }
+  }
+  return null
+}
+
 function oneLine(text, max) {
   const flat = String(text ?? '').replace(/\s+/g, ' ').trim()
   return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`
@@ -217,17 +251,23 @@ export function promptFor(input, entries) {
 }
 
 /** The body sent to the app, or null when this event should not notify. */
-export function buildPayload(input, entries, { answers = false, waitMinutes = DEFAULT_WAIT_MINUTES, wokeByPhone = false } = {}) {
+export function buildPayload(
+  input,
+  entries,
+  { answers = false, waitMinutes = DEFAULT_WAIT_MINUTES, wokeByPhone = false, contextWindow = null } = {},
+) {
   const kind = kindOf(input, { wokeByPhone })
   if (!kind) return null
   const summary = kind === 'finished' ? lastTurnSummary(entries) : describeRequest(input.tool_name, input.tool_input)
   const prompt = answers ? promptFor(input, entries) : null
+  const context = contextUsage(entries, { contextWindow })
   return {
     kind,
     sessionId: String(input.session_id ?? 'unknown'),
     sessionTitle: sessionTitle(entries),
     project: input.cwd ? basename(String(input.cwd)) : '',
     summary: summary.length <= SUMMARY_MAX ? summary : `${summary.slice(0, SUMMARY_MAX - 1)}…`,
+    ...(context ? { context } : {}),
     ...(prompt ? { prompt, waitSeconds: Math.round(waitMinutes * 60) } : {}),
   }
 }
@@ -332,11 +372,13 @@ function readConfig() {
   const secret = process.env.SLACKING_WEBHOOK_SECRET || file.secret
   if (!url || !secret) return null
   const waitMinutes = Number(file.waitMinutes)
+  const contextWindow = Number(file.contextWindow)
   return {
     url: String(url).replace(/\/+$/, ''),
     secret: String(secret),
     answers: file.answers !== false,
     waitMinutes: Number.isFinite(waitMinutes) && waitMinutes > 0 ? waitMinutes : DEFAULT_WAIT_MINUTES,
+    contextWindow: Number.isSafeInteger(contextWindow) && contextWindow > 0 ? contextWindow : null,
   }
 }
 
@@ -436,7 +478,12 @@ async function main() {
     await sleep(800)
     entries = parseLines(readTail(input.transcript_path))
   }
-  const payload = buildPayload(input, entries, { answers: config.answers, waitMinutes: config.waitMinutes, wokeByPhone })
+  const payload = buildPayload(input, entries, {
+    answers: config.answers,
+    waitMinutes: config.waitMinutes,
+    wokeByPhone,
+    contextWindow: config.contextWindow,
+  })
   if (!payload) return null
 
   const response = await request(config, 'POST', '/api/webhooks/claude', payload)

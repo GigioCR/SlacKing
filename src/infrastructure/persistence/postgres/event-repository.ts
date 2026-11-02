@@ -4,7 +4,7 @@ import { HOOK_SILENCE_MS, type Prompt, type Reply } from '../../../domain/prompt
 import type { Pool } from './pool'
 
 // Table defined in migrations/001_initial.sql; the prompt columns in 003_prompts.sql and
-// 004_hook_heartbeat.sql.
+// 004_hook_heartbeat.sql, the context columns in 005_context_usage.sql.
 
 interface EventRow {
   id: string
@@ -13,6 +13,8 @@ interface EventRow {
   session_title: string
   project: string
   summary: string
+  context_tokens: number | null
+  context_window: number | null
   received_at: Date
   prompt: Prompt | null
   answer_by: Date | null
@@ -30,6 +32,10 @@ function toEvent(row: EventRow): AgentEvent {
     sessionTitle: row.session_title,
     project: row.project,
     summary: row.summary,
+    context:
+      row.context_tokens != null && row.context_window != null
+        ? { usedTokens: row.context_tokens, windowTokens: row.context_window }
+        : null,
     receivedAt: row.received_at,
     prompt: row.prompt,
     answerBy: row.answer_by,
@@ -54,8 +60,9 @@ export class PostgresEventRepository implements EventRepository {
 
   async add(event: AgentEvent): Promise<void> {
     await this.pool.query(
-      `insert into agent_events (id, kind, session_id, session_title, project, summary, received_at, prompt, answer_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      `insert into agent_events (id, kind, session_id, session_title, project, summary, received_at, prompt, answer_by,
+         context_tokens, context_window)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         event.id,
         event.kind,
@@ -66,6 +73,8 @@ export class PostgresEventRepository implements EventRepository {
         event.receivedAt,
         event.prompt ? JSON.stringify(event.prompt) : null,
         event.answerBy,
+        event.context?.usedTokens ?? null,
+        event.context?.windowTokens ?? null,
       ],
     )
   }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ContextNote } from './_components/ContextNote'
 import { CLOSED_LABEL, KindIcon } from './_components/EventBadge'
 import { BackIcon, BellOffIcon, CloseIcon, NextIcon, RetryIcon, TrashIcon } from './_components/Icons'
 import { Splash } from './_components/Loading'
@@ -254,9 +255,10 @@ function EventRow({ event, unread, onClear }: { event: AgentEventDto; unread: bo
             <span className="event-time">{clockTime(event.receivedAt)}</span>
           </span>
           <span className="event-summary">{markdownPreview(event.summary)}</span>
-          {(note || project) && (
+          {(note || project || event.context) && (
             <span className="meta">
               {note && <span>{note}</span>}
+              {event.context && <ContextNote context={event.context} />}
               {project && <span className="meta-project">{project}</span>}
             </span>
           )}

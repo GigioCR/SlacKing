@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clip, NO_PROMPT, parseAgentEventInput, retentionCutoff } from '../src/domain/agent-event'
+import { clip, contextPercent, NO_PROMPT, parseAgentEventInput, parseContextUsage, retentionCutoff } from '../src/domain/agent-event'
 import { eventMessage } from '../src/application/notification-message'
 
 describe('parseAgentEventInput', () => {
@@ -18,6 +18,7 @@ describe('parseAgentEventInput', () => {
       sessionTitle: 'Fix invoice sync',
       project: 'hecho-syncware',
       summary: 'Fixed the sync.',
+      context: null,
     })
   })
 
@@ -43,6 +44,26 @@ describe('parseAgentEventInput', () => {
   })
 })
 
+describe('context usage', () => {
+  it('keeps what the hook counted', () => {
+    const body = { kind: 'finished', sessionId: 'a', context: { usedTokens: 152_000, windowTokens: 200_000 } }
+    expect(parseAgentEventInput(body).context).toEqual({ usedTokens: 152_000, windowTokens: 200_000 })
+  })
+
+  it('drops a missing or unbelievable count instead of refusing the notification', () => {
+    expect(parseContextUsage(undefined)).toBeNull()
+    expect(parseContextUsage({ usedTokens: '5', windowTokens: 200_000 })).toBeNull()
+    expect(parseContextUsage({ usedTokens: 5, windowTokens: 0 })).toBeNull()
+    expect(parseContextUsage({ usedTokens: -1, windowTokens: 200_000 })).toBeNull()
+    expect(parseContextUsage({ usedTokens: 1.5, windowTokens: 200_000 })).toBeNull()
+  })
+
+  it('is a whole percent, at most 100', () => {
+    expect(contextPercent({ usedTokens: 152_400, windowTokens: 200_000 })).toBe(76)
+    expect(contextPercent({ usedTokens: 250_000, windowTokens: 200_000 })).toBe(100)
+  })
+})
+
 describe('clip', () => {
   it('collapses spaces and blank lines but keeps paragraphs', () => {
     expect(clip('  a   b\n\n\n\nc  ', 100)).toBe('a b\n\nc')
@@ -62,6 +83,7 @@ describe('eventMessage', () => {
     sessionTitle: 'Fix invoice sync',
     project: 'hecho-syncware',
     summary: 'Fixed it.',
+    context: null,
     receivedAt: new Date(),
     ...NO_PROMPT,
   }

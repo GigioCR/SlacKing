@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { AnswerCard } from '../../_components/AnswerCard'
+import { ContextNote } from '../../_components/ContextNote'
 import { EventBadge } from '../../_components/EventBadge'
 import { BackIcon, CopyIcon, TrashIcon } from '../../_components/Icons'
 import { Spinner, Splash } from '../../_components/Loading'
@@ -126,6 +127,11 @@ export default function EventPage() {
               {event.project && <span>{event.project}</span>}
               <span>{fullTime(event.receivedAt)}</span>
             </div>
+            {event.context && (
+              <p className="muted small">
+                <ContextNote context={event.context} full />
+              </p>
+            )}
             {/* An open question is shown, options and all, in the answer card below. */}
             {!(open && event.prompt?.type === 'question') && <CollapsibleMarkdown text={event.summary} />}
             {event.promptState === 'none' && (

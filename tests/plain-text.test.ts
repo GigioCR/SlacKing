@@ -39,6 +39,7 @@ describe('markdownToPlainText', () => {
       sessionId: 's',
       sessionTitle: 'T',
       project: '',
+      context: null,
       summary: '**Shipped** it.\n\n---\n\n- tests pass',
       receivedAt: new Date(),
     })

@@ -70,10 +70,22 @@ try {
     const [title, project] = sessions[i % sessions.length]
     const kind = i % 4 === 1 ? 'needs-input' : 'finished'
     const pool = kind === 'finished' ? finished : needsInput
+    // Context fills up the newer a notification is, so some show as nearly full; a few have none (older hooks).
+    const contextTokens = i % 7 === 6 ? null : Math.round(200_000 * (0.95 - (i / count) * 0.9))
     await client.query(
-      `insert into agent_events (id, kind, session_id, session_title, project, summary, received_at)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
-      [randomUUID(), kind, `seed-${i % sessions.length}`, title, project, pool[i % pool.length], new Date(now - minutesAgo * 60_000)],
+      `insert into agent_events (id, kind, session_id, session_title, project, summary, received_at, context_tokens, context_window)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        randomUUID(),
+        kind,
+        `seed-${i % sessions.length}`,
+        title,
+        project,
+        pool[i % pool.length],
+        new Date(now - minutesAgo * 60_000),
+        contextTokens,
+        contextTokens === null ? null : 200_000,
+      ],
     )
   }
   const { rows } = await client.query('select count(*)::int as n from agent_events')

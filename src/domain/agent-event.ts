@@ -25,11 +25,22 @@ export interface AgentEvent extends PromptStatus {
   readonly project: string
   /** What was done (finished) or what is being asked (needs-input). */
   readonly summary: string
+  /** How full the session's context was; null from hooks that don't send it. */
+  readonly context: ContextUsage | null
   readonly receivedAt: Date
   readonly repliedAt: Date | null
 }
 
-export type AgentEventInput = Pick<AgentEvent, 'kind' | 'sessionId' | 'sessionTitle' | 'project' | 'summary'>
+export type AgentEventInput = Pick<AgentEvent, 'kind' | 'sessionId' | 'sessionTitle' | 'project' | 'summary' | 'context'>
+
+/** What Claude's last reply was given to read, in tokens, out of what the model can hold. */
+export interface ContextUsage {
+  readonly usedTokens: number
+  readonly windowTokens: number
+}
+
+// Larger than any model's window: anything above is not a real count.
+const MAX_WINDOW_TOKENS = 100_000_000
 
 /** The prompt fields of a notification that can't be answered from the phone. */
 export const NO_PROMPT = { prompt: null, answerBy: null, reply: null, repliedAt: null, closedAt: null, hookSeenAt: null } as const
@@ -74,7 +85,23 @@ export function parseAgentEventInput(raw: unknown): AgentEventInput {
     sessionTitle: clip(body.sessionTitle, LIMITS.sessionTitle) || project || 'Untitled session',
     project,
     summary: clip(body.summary, LIMITS.summary) || defaultSummary(kind as AgentEventKind),
+    context: parseContextUsage(body.context),
   }
+}
+
+/** Null when missing or not believable: it only adds to a notification, so it never rejects one. */
+export function parseContextUsage(raw: unknown): ContextUsage | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const { usedTokens, windowTokens } = raw as Record<string, unknown>
+  if (typeof usedTokens !== 'number' || typeof windowTokens !== 'number') return null
+  if (!Number.isSafeInteger(usedTokens) || !Number.isSafeInteger(windowTokens)) return null
+  if (usedTokens < 0 || windowTokens <= 0 || usedTokens > MAX_WINDOW_TOKENS || windowTokens > MAX_WINDOW_TOKENS) return null
+  return { usedTokens, windowTokens }
+}
+
+/** 0 to 100. */
+export function contextPercent(context: ContextUsage): number {
+  return Math.min(100, Math.round((context.usedTokens / context.windowTokens) * 100))
 }
 
 function defaultSummary(kind: AgentEventKind): string {

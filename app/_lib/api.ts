@@ -65,6 +65,8 @@ export interface AgentEventDto {
   sessionTitle: string
   project: string
   summary: string
+  /** How full the session's context was; null from hooks that don't send it. */
+  context: { usedTokens: number; windowTokens: number; percent: number } | null
   receivedAt: string
   /** What can be answered from here; see src/domain/prompt.ts. */
   prompt: Prompt | null

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { answerFor, buildPayload, describeRequest, kindOf, lastTurnSummary, movedOn, parseLines, promptFor, sessionTitle } from '../hook/notify.mjs'
+import { answerFor, buildPayload, contextUsage, describeRequest, kindOf, lastTurnSummary, movedOn, parseLines, promptFor, sessionTitle } from '../hook/notify.mjs'
 
 // Shaped like the lines of a real Claude Code session log (~/.claude/projects/<folder>/<session>.jsonl).
 const user = (text: string) => ({ type: 'user', message: { role: 'user', content: text } })
@@ -117,6 +117,44 @@ describe('buildPayload', () => {
 
   it('sends nothing for an ignored event', () => {
     expect(buildPayload({ hook_event_name: 'PostToolUse' }, entries)).toBeNull()
+  })
+})
+
+describe('contextUsage', () => {
+  const reply = (usage: Record<string, number>, extra: Record<string, unknown> = {}) => ({
+    type: 'assistant',
+    requestedModel: 'claude-haiku-5-5',
+    message: { model: 'claude-haiku-5-5', content: [{ type: 'text', text: 'ok' }], usage },
+    ...extra,
+  })
+  const turn = reply({ input_tokens: 2, cache_creation_input_tokens: 1_000, cache_read_input_tokens: 149_000, output_tokens: 500 })
+
+  it("counts what the last reply read, out of the model's window", () => {
+    expect(contextUsage([user('go'), turn])).toEqual({ usedTokens: 150_002, windowTokens: 200_000 })
+  })
+
+  it('knows the long-context models, and a session already past the standard window', () => {
+    expect(contextUsage([reply({ input_tokens: 10 }, { requestedModel: 'claude-sonnet-5-5[1m]' })])?.windowTokens).toBe(1_000_000)
+    expect(contextUsage([reply({ input_tokens: 10 }, { requestedModel: 'claude-opus-5-5' })])?.windowTokens).toBe(1_000_000)
+    expect(contextUsage([reply({ cache_read_input_tokens: 300_000 })])?.windowTokens).toBe(1_000_000)
+  })
+
+  it('takes the window from the settings when given', () => {
+    expect(contextUsage([turn], { contextWindow: 500_000 })?.windowTokens).toBe(500_000)
+  })
+
+  it('skips subagents and messages without usage, and says nothing right after a compaction', () => {
+    const synthetic = { type: 'assistant', message: { model: '<synthetic>', usage: { input_tokens: 0 } } }
+    expect(contextUsage([turn, reply({ input_tokens: 9 }, { isSidechain: true }), synthetic])?.usedTokens).toBe(150_002)
+    expect(contextUsage([turn, { type: 'system', subtype: 'compact_boundary' }])).toBeNull()
+    expect(contextUsage([user('go')])).toBeNull()
+  })
+
+  it('goes with the notification', () => {
+    expect(buildPayload({ hook_event_name: 'Stop', session_id: 's1' }, [user('go'), turn])?.context).toEqual({
+      usedTokens: 150_002,
+      windowTokens: 200_000,
+    })
   })
 })
 

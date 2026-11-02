@@ -531,6 +531,21 @@ label {
   white-space: nowrap;
 }
 
+.meta-context {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-context.warn {
+  color: var(--ask);
+  font-weight: 600;
+}
+
+.meta-context.danger {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .count-chip.waiting,
 .day-heading.waiting {
   color: var(--ask);

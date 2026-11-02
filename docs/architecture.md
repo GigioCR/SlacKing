@@ -18,8 +18,11 @@ Clean architecture, laid out like Dotario Monitor. Dependencies point inward onl
 **A session finishes or needs a decision.** Claude Code runs `hook/notify.mjs` with the hook's
 JSON. It reads the session title (`custom-title` lines) and the last turn's recap (the
 `wrap_up` tool call the desktop app ends each turn with) from the session log, and POSTs
-`{ kind, sessionId, sessionTitle, project, summary }` to `/api/webhooks/claude` with
-`Authorization: Bearer WEBHOOK_SECRET`. `receiveAgentEvent` validates it, stores it, pushes it to
+`{ kind, sessionId, sessionTitle, project, summary, context }` to `/api/webhooks/claude` with
+`Authorization: Bearer WEBHOOK_SECRET`. `context` is how full the session is: the tokens the last
+reply read (its `usage`: input plus cache writes and reads) out of the model's window, which the
+log doesn't record, so the hook goes by the model (1M for `[1m]` and Opus 5, else 200k) unless
+`contextWindow` in `slacking.json` says otherwise. The inbox colours it from 70% and 90%. `receiveAgentEvent` validates it, stores it, pushes it to
 every phone, forgets phones the push service reports gone, and deletes events older than 7 days.
 
 **Answering from the phone.** The hook adds what can be answered to the POST: `prompt`
@@ -92,7 +95,7 @@ authenticator (real P-256 keys and signatures), including answers made for anoth
 
 Supabase Postgres through `pg` and Supabase's transaction pooler (fits serverless). Tables in
 `migrations/`: `agent_events`, `device_subscriptions`, `authenticator` (one row) in 001;
-`passkeys` and `webauthn_challenges` in 002; the prompt and reply columns of `agent_events` in 003, and the hook's heartbeat in 004.
+`passkeys` and `webauthn_challenges` in 002; the prompt and reply columns of `agent_events` in 003, the hook's heartbeat in 004, and context usage in 005.
 Row level security is on with no policies and the Data API roles lose their grants, so only the
 app's own connection can read them. Without `DATABASE_URL` the in-memory repositories are used.
 

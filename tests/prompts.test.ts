@@ -67,6 +67,7 @@ describe('eventMessage buttons', () => {
     sessionTitle: 'Deploy',
     project: '',
     summary: 'x',
+    context: null,
     receivedAt: new Date(),
     prompt,
     answerBy: prompt ? new Date(Date.now() + 60_000) : null,
@@ -187,7 +188,7 @@ describe('hook activity', () => {
   it('says when the computer was last heard from and how long it waits', async () => {
     const events = new InMemoryEventRepository()
     const at = new Date('2026-11-01T12:00:00Z')
-    await events.add({ ...NO_PROMPT, id: 'a', kind: 'finished', sessionId: 's', sessionTitle: 't', project: '', summary: 'x', receivedAt: at })
+    await events.add({ ...NO_PROMPT, id: 'a', kind: 'finished', sessionId: 's', sessionTitle: 't', project: '', summary: 'x', context: null, receivedAt: at })
     await events.add({
       ...NO_PROMPT,
       id: 'b',
@@ -196,6 +197,7 @@ describe('hook activity', () => {
       sessionTitle: 't',
       project: '',
       summary: 'x',
+      context: null,
       receivedAt: new Date('2026-11-01T12:05:00Z'),
       prompt: { type: 'plan' },
       answerBy: new Date('2026-11-01T12:35:00Z'),

@@ -20,6 +20,7 @@ export interface Payload {
   sessionTitle: string
   project: string
   summary: string
+  context?: ContextUsage
   prompt?: Prompt
   waitSeconds?: number
 }
@@ -28,6 +29,12 @@ export interface PayloadOptions {
   answers?: boolean
   waitMinutes?: number
   wokeByPhone?: boolean
+  contextWindow?: number | null
+}
+
+export interface ContextUsage {
+  usedTokens: number
+  windowTokens: number
 }
 
 export interface HookAnswer {
@@ -44,6 +51,7 @@ export function kindOf(input: HookInput, options?: { wokeByPhone?: boolean }): K
 export function parseLines(text: string): Entry[]
 export function sessionTitle(entries: Entry[]): string
 export function lastTurnSummary(entries: Entry[]): string
+export function contextUsage(entries: Entry[], options?: { contextWindow?: number | null }): ContextUsage | null
 export function describeRequest(toolName: string | undefined, toolInput: Record<string, unknown> | undefined): string
 export function promptFor(input: HookInput, entries: Entry[]): Prompt | null
 export function buildPayload(input: HookInput, entries: Entry[], options?: PayloadOptions): Payload | null

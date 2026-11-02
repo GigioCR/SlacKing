@@ -40,6 +40,7 @@ function event(n: number, at: string): AgentEvent {
     sessionTitle: `Event ${n}`,
     project: 'p',
     summary: 'x',
+    context: null,
     receivedAt: new Date(at),
     ...NO_PROMPT,
   }
