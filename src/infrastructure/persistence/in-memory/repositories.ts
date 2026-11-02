@@ -1,5 +1,5 @@
 import type { AuthenticatorRepository } from '../../../application/ports/authenticator-repository'
-import type { EventRepository } from '../../../application/ports/event-repository'
+import type { EventRepository, HookActivity } from '../../../application/ports/event-repository'
 import type { ChallengeStore, PasskeyRepository } from '../../../application/ports/passkey-repository'
 import type { SubscriptionRepository } from '../../../application/ports/subscription-repository'
 import type { AgentEvent, EventCursor } from '../../../domain/agent-event'
@@ -81,6 +81,18 @@ export class InMemoryEventRepository implements EventRepository {
   async closePrompt(id: string, at: Date): Promise<void> {
     const event = this.events.get(id)
     if (event && promptState(event, at) === 'open') this.events.set(id, { ...event, closedAt: at })
+  }
+
+  async hookActivity(): Promise<HookActivity> {
+    const all = [...this.events.values()]
+    const latest = (dates: (Date | null)[]) =>
+      dates.reduce<Date | null>((max, d) => (d && (!max || d > max) ? d : max), null)
+    const prompted = all.filter((e) => e.answerBy).sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())[0]
+    return {
+      lastEventAt: latest(all.map((e) => e.receivedAt)),
+      lastCheckInAt: latest(all.map((e) => e.hookSeenAt)),
+      lastWaitSeconds: prompted?.answerBy ? Math.round((prompted.answerBy.getTime() - prompted.receivedAt.getTime()) / 1000) : null,
+    }
   }
 
   async closeSessionPrompts(sessionId: string, at: Date): Promise<void> {

@@ -69,9 +69,11 @@ describe('lastTurnSummary', () => {
 describe('describeRequest', () => {
   it('says what Claude wants to do', () => {
     expect(describeRequest('Bash', { command: 'git push', description: 'Push the branch' })).toBe(
-      'Wants to run: git push\n(Push the branch)',
+      'Wants to run:\n\n```\ngit push\n```\n\nPush the branch',
     )
-    expect(describeRequest('Edit', { file_path: 'src/a.ts' })).toBe('Wants to edit src/a.ts')
+    expect(describeRequest('Edit', { file_path: 'src/a.ts' })).toBe('Wants to edit `src/a.ts`')
+    // A command with backticks gets a longer fence, so it stays one block.
+    expect(describeRequest('Bash', { command: 'echo ```x```' })).toBe('Wants to run:\n\n````\necho ```x```\n````')
     expect(describeRequest('AskUserQuestion', { questions: [{ question: 'Which DB?' }, { question: 'Which host?' }] })).toBe(
       'Asks: Which DB?\nWhich host?',
     )
@@ -110,7 +112,7 @@ describe('buildPayload', () => {
       entries,
     )
     expect(payload?.kind).toBe('needs-input')
-    expect(payload?.summary).toBe('Wants to run: rm -rf dist')
+    expect(payload?.summary).toBe('Wants to run:\n\n```\nrm -rf dist\n```')
   })
 
   it('sends nothing for an ignored event', () => {

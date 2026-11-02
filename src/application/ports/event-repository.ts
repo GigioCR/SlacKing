@@ -1,6 +1,13 @@
 import type { AgentEvent, EventCursor } from '../../domain/agent-event'
 import type { Reply } from '../../domain/prompt'
 
+export interface HookActivity {
+  lastEventAt: Date | null
+  lastCheckInAt: Date | null
+  /** From the newest notification that could be answered; null when none could. */
+  lastWaitSeconds: number | null
+}
+
 export interface EventRepository {
   add(event: AgentEvent): Promise<void>
   get(id: string): Promise<AgentEvent | null>
@@ -14,6 +21,8 @@ export interface EventRepository {
   /** Marks open prompts closed: one event's, or every one of a session's. Answered ones stay answered. */
   closePrompt(id: string, at: Date): Promise<void>
   closeSessionPrompts(sessionId: string, at: Date): Promise<void>
+  /** When the computer last sent a notification and last checked for an answer, and how long it last offered to wait. */
+  hookActivity(): Promise<HookActivity>
   /**
    * Newest first: up to `limit` events that come after `after` in that order (all of them from the
    * start when it is null). Ties on time are broken by id, so paging never skips or repeats one.

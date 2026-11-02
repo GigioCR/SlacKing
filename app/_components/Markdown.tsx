@@ -2,11 +2,13 @@
 
 import { useLayoutEffect, useRef, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
+import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 
-// Claude writes markdown: headings, lists, code, tables. Rendered without raw HTML (react-markdown
-// skips it) and without images, which would load from addresses in the text. Links open outside
-// the app; react-markdown already drops javascript: and other unsafe addresses.
+// Claude writes markdown: headings, lists, code, tables. A single line break stays a line break, as
+// in Claude's own apps. Rendered without raw HTML (react-markdown skips it) and without images,
+// which would load from addresses in the text. Links open outside the app; react-markdown already
+// drops javascript: and other unsafe addresses.
 const components: Components = {
   a: ({ href, children }) => (
     <a href={href} target="_blank" rel="noopener noreferrer">
@@ -24,7 +26,7 @@ const components: Components = {
 export function Markdown({ text }: { text: string }) {
   return (
     <div className="markdown">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} disallowedElements={['img']} unwrapDisallowed skipHtml>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components} disallowedElements={['img']} unwrapDisallowed skipHtml>
         {text}
       </ReactMarkdown>
     </div>

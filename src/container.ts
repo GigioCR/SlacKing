@@ -12,6 +12,7 @@ import { answerPrompt, closePrompt, readPromptAnswer } from './application/use-c
 import { clearEvent, clearEvents } from './application/use-cases/clear-events'
 import { confirmLinking } from './application/use-cases/confirm-linking'
 import { getEvent } from './application/use-cases/get-event'
+import { getHookActivity } from './application/use-cases/hook-activity'
 import { listEvents } from './application/use-cases/list-events'
 import { receiveAgentEvent } from './application/use-cases/receive-agent-event'
 import { sendTestNotification } from './application/use-cases/send-test-notification'
@@ -84,6 +85,7 @@ function build(config: AppConfig) {
       answerPrompt: answerPrompt({ events, clock: systemClock }),
       readPromptAnswer: readPromptAnswer({ events, clock: systemClock }),
       closePrompt: closePrompt({ events, clock: systemClock }),
+      getHookActivity: getHookActivity({ events }),
       clearEvent: clearEvent({ events }),
       clearEvents: clearEvents({ events }),
       subscribeDevice: subscribeDevice({ subscriptions, ids: uuidGenerator, clock: systemClock }),

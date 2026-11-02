@@ -151,6 +151,13 @@ function oneLine(text, max) {
   return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`
 }
 
+/** A markdown code block whose fence can't be closed by backticks inside the code. */
+function codeBlock(code) {
+  const longest = Math.max(2, ...(code.match(/`+/g) ?? []).map((run) => run.length))
+  const fence = '`'.repeat(longest + 1)
+  return `${fence}\n${code}\n${fence}`
+}
+
 /** What Claude is waiting on, from the tool it wants to use. */
 export function describeRequest(toolName, toolInput) {
   const input = toolInput ?? {}
@@ -166,12 +173,15 @@ export function describeRequest(toolName, toolInput) {
     case 'ExitPlanMode':
       return typeof input.plan === 'string' && input.plan.trim() ? `Has a plan ready:\n\n${input.plan.trim()}` : 'Has a plan ready and wants your approval.'
     case 'Bash':
-    case 'PowerShell':
-      return `Wants to run: ${oneLine(input.command, 300)}${input.description ? `\n(${oneLine(input.description, 150)})` : ''}`
+    case 'PowerShell': {
+      // The whole command, as code: it is what Allow allows.
+      const description = input.description ? `\n\n${oneLine(input.description, 150)}` : ''
+      return `Wants to run:\n\n${codeBlock(String(input.command ?? '').trim().slice(0, 2_000))}${description}`
+    }
     case 'Edit':
     case 'Write':
     case 'NotebookEdit':
-      return `Wants to edit ${input.file_path ?? input.notebook_path ?? 'a file'}`
+      return `Wants to edit \`${input.file_path ?? input.notebook_path ?? 'a file'}\``
     case 'WebFetch':
       return `Wants to open ${oneLine(input.url, 200)}`
     default:

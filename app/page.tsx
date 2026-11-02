@@ -2,17 +2,18 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { KindIcon } from './_components/EventBadge'
+import { CLOSED_LABEL, KindIcon } from './_components/EventBadge'
 import { BackIcon, BellOffIcon, CloseIcon, NextIcon, RetryIcon, TrashIcon } from './_components/Icons'
 import { Splash } from './_components/Loading'
 import { useToast } from './_components/Toast'
 import { api, ApiError, type AgentEventDto, type EventPage } from './_lib/api'
+import { eventCache } from './_lib/event-cache'
 import { onEventsChanged, readPushState, type PushState } from './_lib/push'
 import { storage } from './_lib/storage'
 import { clockTime, dayLabel } from './_lib/time'
 import { useRequireSignIn } from './_lib/use-auth'
 import { useDeferredClear } from './_lib/use-deferred-clear'
-import { markdownToPlainText } from '@/src/domain/plain-text'
+import { markdownPreview } from '@/src/domain/plain-text'
 
 // Without a push (notifications off), the first page still catches up on its own.
 const REFRESH_MS = 30_000
@@ -43,6 +44,7 @@ export default function InboxPage() {
         return
       }
       setPage(next)
+      eventCache.remember(next.events)
       setError(null)
     } catch (e) {
       if (!(e instanceof ApiError && e.status === 401)) setError((e as Error).message)
@@ -91,16 +93,20 @@ export default function InboxPage() {
   const hiddenCount = (page?.events.length ?? 0) - visible.length
   const total = Math.max(0, (page?.total ?? 0) - hiddenCount)
 
+  // What Claude is waiting on goes first, on its own; it is recent by nature, so on the first page.
+  const waiting = useMemo(() => (pageIndex === 0 ? visible.filter(needsYou) : []), [visible, pageIndex])
+
   const groups = useMemo(() => {
     const byDay: { day: string; events: AgentEventDto[] }[] = []
     for (const event of visible) {
+      if (waiting.includes(event)) continue
       const day = dayLabel(event.receivedAt)
       const last = byDay.at(-1)
       if (last?.day === day) last.events.push(event)
       else byDay.push({ day, events: [event] })
     }
     return byDay
-  }, [visible])
+  }, [visible, waiting])
 
   function goTo(nextCursors: (string | null)[]) {
     setCursors(nextCursors)
@@ -136,7 +142,7 @@ export default function InboxPage() {
     <>
       <div className="page-head">
         <h1>Inbox</h1>
-        {total > 0 && <span className="count-chip">{total}</span>}
+        {waiting.length > 0 && <span className="count-chip waiting">{waiting.length} waiting</span>}
         {pageIndex === 0 && visible.length > 0 && (
           <button type="button" className="button ghost compact push-right" onClick={clearAll}>
             <TrashIcon size={18} />
@@ -171,34 +177,23 @@ export default function InboxPage() {
         </div>
       )}
 
+      {waiting.length > 0 && (
+        <section className="day-group" aria-label="Waiting for you">
+          <h2 className="day-heading waiting">Waiting for you</h2>
+          <ul className="inbox">
+            {waiting.map((event) => (
+              <EventRow key={event.id} event={event} unread={!seen.has(event.id)} onClear={clearOne} />
+            ))}
+          </ul>
+        </section>
+      )}
+
       {groups.map((group) => (
         <section key={group.day} className="day-group" aria-label={group.day}>
           <h2 className="day-heading">{group.day}</h2>
           <ul className="inbox">
             {group.events.map((event) => (
-              <li key={event.id} className={seen.has(event.id) ? 'event' : 'event unread'}>
-                <Link href={`/events/${event.id}`} className="event-link">
-                  <KindIcon kind={event.kind} />
-                  <span className="event-body">
-                    <span className="event-title">{event.sessionTitle}</span>
-                    <span className="event-summary">{markdownToPlainText(event.summary)}</span>
-                    <span className="meta">
-                      {event.promptState === 'open' && <span className="waiting">Waiting for you</span>}
-                      {event.promptState === 'answered' && <span>Answered</span>}
-                      {event.project && event.project !== event.sessionTitle && <span>{event.project}</span>}
-                      <span>{clockTime(event.receivedAt)}</span>
-                    </span>
-                  </span>
-                </Link>
-                <button
-                  type="button"
-                  className="icon-button dismiss"
-                  aria-label={`Clear "${event.sessionTitle}"`}
-                  onClick={() => clearOne(event)}
-                >
-                  <CloseIcon size={18} />
-                </button>
-              </li>
+              <EventRow key={event.id} event={event} unread={!seen.has(event.id)} onClear={clearOne} />
             ))}
           </ul>
         </section>
@@ -232,5 +227,44 @@ export default function InboxPage() {
 
       {page && total > 0 && <p className="muted small center">Notifications are kept for 7 days.</p>}
     </>
+  )
+}
+
+function needsYou(event: AgentEventDto): boolean {
+  return event.kind === 'needs-input' && event.promptState === 'open'
+}
+
+/** What is true about it now, if worth saying; nothing for a plain "Done" or what is pinned as waiting. */
+function statusNote(event: AgentEventDto): string | null {
+  if (event.promptState === 'answered') return 'Answered'
+  if (event.promptState === 'closed' && event.kind === 'needs-input') return CLOSED_LABEL[event.closedReason ?? 'moved-on']
+  return null
+}
+
+function EventRow({ event, unread, onClear }: { event: AgentEventDto; unread: boolean; onClear: (event: AgentEventDto) => void }) {
+  const note = statusNote(event)
+  const project = event.project && event.project !== event.sessionTitle ? event.project : ''
+  return (
+    <li className={unread ? 'event unread' : 'event'}>
+      <Link href={`/events/${event.id}`} className="event-link">
+        <KindIcon event={event} />
+        <span className="event-body">
+          <span className="event-title-row">
+            <span className="event-title">{event.sessionTitle}</span>
+            <span className="event-time">{clockTime(event.receivedAt)}</span>
+          </span>
+          <span className="event-summary">{markdownPreview(event.summary)}</span>
+          {(note || project) && (
+            <span className="meta">
+              {note && <span>{note}</span>}
+              {project && <span className="meta-project">{project}</span>}
+            </span>
+          )}
+        </span>
+      </Link>
+      <button type="button" className="icon-button dismiss" aria-label={`Clear "${event.sessionTitle}"`} onClick={() => onClear(event)}>
+        <CloseIcon size={18} />
+      </button>
+    </li>
   )
 }

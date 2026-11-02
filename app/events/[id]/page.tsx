@@ -10,6 +10,7 @@ import { Spinner, Splash } from '../../_components/Loading'
 import { CollapsibleMarkdown } from '../../_components/Markdown'
 import { useToast } from '../../_components/Toast'
 import { api, ApiError, type AgentEventDto } from '../../_lib/api'
+import { eventCache } from '../../_lib/event-cache'
 import { onEventsChanged } from '../../_lib/push'
 import { storage } from '../../_lib/storage'
 import { fullTime } from '../../_lib/time'
@@ -24,7 +25,8 @@ export default function EventPage() {
   const router = useRouter()
   const toast = useToast()
   const { id } = useParams<{ id: string }>()
-  const [event, setEvent] = useState<AgentEventDto | null>(null)
+  // Opened from the inbox: shown at once from its copy, then refreshed.
+  const [event, setEvent] = useState<AgentEventDto | null>(() => (id ? eventCache.get(id) : null))
   const [error, setError] = useState<string | null>(null)
   const [clearing, setClearing] = useState(false)
 
@@ -44,17 +46,20 @@ export default function EventPage() {
     void load()
   }, [ready, id, load])
 
-  // While Claude waits, an answer at the computer (or the deadline) closes it: keep the screen honest.
-  const waiting = event?.promptState === 'open'
+  // While Claude waits, an answer at the computer (or the deadline) closes it, and a sleeping
+  // computer that wakes up opens it again: keep the screen honest.
+  const live =
+    event?.promptState === 'open' ||
+    (event?.closedReason === 'session-gone' && !!event.answerBy && new Date(event.answerBy).getTime() > Date.now())
   useEffect(() => {
-    if (!waiting) return
+    if (!live) return
     const timer = window.setInterval(() => void load(), OPEN_REFRESH_MS)
     const stop = onEventsChanged(() => void load())
     return () => {
       window.clearInterval(timer)
       stop()
     }
-  }, [waiting, load])
+  }, [live, load])
 
   async function copySummary() {
     if (!event) return
@@ -79,8 +84,9 @@ export default function EventPage() {
     }
   }
 
-  if (!ready || (!event && !error)) return <Splash />
+  if (!event && (!ready || !error)) return <Splash />
 
+  const open = event?.promptState === 'open'
   return (
     <>
       <Link href="/" className="back-link">
@@ -88,7 +94,7 @@ export default function EventPage() {
         Inbox
       </Link>
 
-      {error && (
+      {error && !event && (
         <div className="empty">
           <h2>Not here anymore</h2>
           <p className="muted">{error}</p>
@@ -101,13 +107,27 @@ export default function EventPage() {
       {event && (
         <>
           <article className="card detail">
-            <EventBadge kind={event.kind} />
+            <div className="row">
+              <EventBadge event={event} />
+              <div className="detail-tools push-right">
+                <button type="button" className="icon-button" aria-label="Copy the summary" onClick={() => void copySummary()}>
+                  <CopyIcon size={18} />
+                </button>
+                {/* Clearing while Claude waits would also stop the wait, so it waits until then. */}
+                {!open && (
+                  <button type="button" className="icon-button" aria-label="Clear this notification" disabled={clearing} onClick={() => void clear()}>
+                    {clearing ? <Spinner /> : <TrashIcon size={18} />}
+                  </button>
+                )}
+              </div>
+            </div>
             <h1>{event.sessionTitle}</h1>
             <div className="meta">
               {event.project && <span>{event.project}</span>}
               <span>{fullTime(event.receivedAt)}</span>
             </div>
-            <CollapsibleMarkdown text={event.summary} />
+            {/* An open question is shown, options and all, in the answer card below. */}
+            {!(open && event.prompt?.type === 'question') && <CollapsibleMarkdown text={event.summary} />}
             {event.promptState === 'none' && (
               <p className="muted small">
                 {event.kind === 'needs-input'
@@ -118,17 +138,6 @@ export default function EventPage() {
           </article>
 
           <AnswerCard event={event} onChange={setEvent} />
-
-          <div className="action-bar">
-            <button type="button" className="button secondary" onClick={() => void copySummary()}>
-              <CopyIcon size={18} />
-              Copy
-            </button>
-            <button type="button" className="button danger" onClick={() => void clear()} disabled={clearing}>
-              {clearing ? <Spinner /> : <TrashIcon size={18} />}
-              Clear
-            </button>
-          </div>
         </>
       )}
     </>

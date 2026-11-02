@@ -1,4 +1,4 @@
-import type { EventRepository } from '../../../application/ports/event-repository'
+import type { EventRepository, HookActivity } from '../../../application/ports/event-repository'
 import type { AgentEvent, EventCursor } from '../../../domain/agent-event'
 import { HOOK_SILENCE_MS, type Prompt, type Reply } from '../../../domain/prompt'
 import type { Pool } from './pool'
@@ -95,6 +95,21 @@ export class PostgresEventRepository implements EventRepository {
       at,
       silentSince(at),
     ])
+  }
+
+  async hookActivity(): Promise<HookActivity> {
+    const { rows } = await this.pool.query<{ last_event: Date | null; last_check: Date | null; wait: string | null }>(
+      `select max(received_at) as last_event, max(hook_seen_at) as last_check,
+         (select extract(epoch from answer_by - received_at) from agent_events
+          where answer_by is not null order by received_at desc limit 1) as wait
+       from agent_events`,
+    )
+    const row = rows[0]
+    return {
+      lastEventAt: row?.last_event ?? null,
+      lastCheckInAt: row?.last_check ?? null,
+      lastWaitSeconds: row?.wait == null ? null : Math.round(Number(row.wait)),
+    }
   }
 
   async get(id: string): Promise<AgentEvent | null> {

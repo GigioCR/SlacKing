@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { eventMessage } from '../src/application/notification-message'
 import { NO_PROMPT } from '../src/domain/agent-event'
-import { markdownToPlainText } from '../src/domain/plain-text'
+import { markdownPreview, markdownToPlainText } from '../src/domain/plain-text'
 
 describe('markdownToPlainText', () => {
   it('keeps the words and drops the syntax', () => {
@@ -22,6 +22,13 @@ describe('markdownToPlainText', () => {
   it('leaves snake_case, lone asterisks and maths alone', () => {
     expect(markdownToPlainText('Set max_retry_count to 2 * 3 in config_file.')).toBe('Set max_retry_count to 2 * 3 in config_file.')
     expect(markdownToPlainText('an _emphasised_ and *italic* word')).toBe('an emphasised and italic word')
+  })
+
+  it('makes a one-line inbox preview that keeps lines apart', () => {
+    expect(markdownPreview('Has a plan ready:\n\n## Goal\n\nLet people pick a theme.\n\n- Add a toggle')).toBe(
+      'Has a plan ready: Goal · Let people pick a theme. · • Add a toggle',
+    )
+    expect(markdownPreview('Wants to run:\n\n```\ngit push\n```\n\nPush to main')).toBe('Wants to run: git push · Push to main')
   })
 
   it('is what the notification shows', () => {

@@ -1,11 +1,12 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AuthHero } from '../_components/AuthHero'
 import { CodeField } from '../_components/CodeField'
 import { Spinner } from '../_components/Loading'
-import { api } from '../_lib/api'
+import { api, type AuthStatus } from '../_lib/api'
 
 interface LinkingStart {
   uri: string
@@ -24,6 +25,16 @@ export default function LinkPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  // Re-linking replaces the authenticator in use, so it says what that undoes first.
+  const [alreadyLinked, setAlreadyLinked] = useState(false)
+
+  useEffect(() => {
+    api<AuthStatus>('/api/auth/status', { expectUnauthorized: true })
+      .then((status) => setAlreadyLinked(status.linked))
+      .catch(() => {
+        // Unknown: the setup code still guards linking.
+      })
+  }, [])
 
   async function start() {
     setBusy(true)
@@ -64,6 +75,15 @@ export default function LinkPage() {
     return (
       <>
       <AuthHero />
+      {alreadyLinked && (
+        <div className="card warning-card" role="note">
+          <p>
+            <strong>An authenticator is already linked.</strong> Linking a new one replaces it: codes from the old one stop
+            working, every browser signed in with it is signed out, and all passkeys are removed.
+          </p>
+          <Link href="/sign-in">Back to sign in</Link>
+        </div>
+      )}
       <div className="card">
         <h1>Link your authenticator</h1>
         <p className="muted">

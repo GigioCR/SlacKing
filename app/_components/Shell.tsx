@@ -33,7 +33,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className={bare ? 'shell bare' : 'shell'}>
         <header className="topbar">
           <Link href="/" className="brand">
-            <img className="brand-icon" src="/icons/icon-192.png" alt="" width={32} height={32} />
+            <img className="brand-icon" src="/sloth.svg" alt="" width={50} height={30} />
             SlacKing
           </Link>
         </header>

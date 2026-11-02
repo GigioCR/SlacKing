@@ -36,3 +36,15 @@ export function markdownToPlainText(markdown: string): string {
       .trim()
   )
 }
+
+/**
+ * One line for the inbox, where line breaks would vanish and run headings into sentences ("Goal
+ * Let people…"): lines are joined with " · ", except after a colon ("Wants to run: git push").
+ */
+export function markdownPreview(markdown: string): string {
+  const lines = markdownToPlainText(markdown)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+  return lines.reduce((text, line) => (!text ? line : `${text}${text.endsWith(':') ? ' ' : ' · '}${line}`), '')
+}

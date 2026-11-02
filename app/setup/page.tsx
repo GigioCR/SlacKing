@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Spinner, Splash } from '../_components/Loading'
+import { ComputerCard, useHookActivity } from '../_components/ComputerCard'
 import { PasskeysCard, usePasskeys } from '../_components/PasskeysCard'
 import { useToast } from '../_components/Toast'
 import { api } from '../_lib/api'
@@ -47,6 +48,7 @@ export default function SetupPage() {
   const [busy, setBusy] = useState<Busy>(null)
   const [installed, setInstalled] = useState(true)
   const passkeys = usePasskeys(ready)
+  const computer = useHookActivity(ready)
 
   useEffect(() => {
     if (!ready) return
@@ -93,7 +95,7 @@ export default function SetupPage() {
       router.replace('/sign-in')
     })
 
-  if (!ready || state === 'checking' || !passkeys.loaded) return <Splash />
+  if (!ready || state === 'checking' || !passkeys.loaded || !computer.loaded) return <Splash />
 
   const chip = STATE_CHIP[state]
 
@@ -144,6 +146,8 @@ export default function SetupPage() {
           </div>
         )}
       </section>
+
+      <ComputerCard activity={computer.activity} />
 
       <PasskeysCard deviceLabel={label} keys={passkeys} />
 

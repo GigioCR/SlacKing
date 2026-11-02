@@ -164,6 +164,20 @@ export function lastHeardFrom(event: Pick<PromptStatus, 'hookSeenAt'> & { readon
   return event.hookSeenAt ?? event.receivedAt
 }
 
+/**
+ * Why a closed prompt closed: the session moved on at the computer (answered there, interrupted, a
+ * new message, or a newer notification), the wait ran out, or the hook went quiet (the session was
+ * closed, or the computer is asleep). Null unless the prompt is closed.
+ */
+export type ClosedReason = 'moved-on' | 'timed-out' | 'session-gone'
+
+export function closedReason(event: PromptStatus & { readonly receivedAt: Date }, now: Date): ClosedReason | null {
+  if (promptState(event, now) !== 'closed') return null
+  if (event.closedAt) return 'moved-on'
+  if (event.answerBy && event.answerBy <= now) return 'timed-out'
+  return 'session-gone'
+}
+
 export function promptState(event: PromptStatus & { readonly receivedAt: Date }, now: Date): PromptState {
   if (!event.prompt || !event.answerBy) return 'none'
   if (event.reply) return 'answered'

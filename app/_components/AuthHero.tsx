@@ -2,7 +2,7 @@
 export function AuthHero() {
   return (
     <div className="auth-hero">
-      <img src="/icons/icon-192.png" alt="" width={72} height={72} />
+      <img src="/sloth.svg" alt="" width={170} height={102} />
       <p className="muted">Know when Claude is done, or needs you.</p>
     </div>
   )

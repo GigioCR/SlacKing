@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { api, ApiError, type AgentEventDto, type Prompt, type Question, type Reply } from '../_lib/api'
+import { useEffect, useState, type ReactNode } from 'react'
+import { api, ApiError, type AgentEventDto, type ClosedReason, type Prompt, type Question, type Reply } from '../_lib/api'
 import { clockTime } from '../_lib/time'
 import { CheckIcon, CloseIcon } from './Icons'
 import { Spinner } from './Loading'
@@ -13,7 +13,17 @@ type Props = {
   onChange: (event: AgentEventDto) => void
 }
 
-/** Answering what Claude is waiting on, from the phone. The hook on the computer hands it over. */
+const CLOSED_TEXT: Record<ClosedReason, string> = {
+  'moved-on': 'It was answered at the computer, or Claude moved on.',
+  'timed-out': 'The time to answer from the phone ran out. Answer at the computer.',
+  'session-gone':
+    "The session was closed, or the computer is asleep. If it wakes up before the time runs out, you can answer here again.",
+}
+
+/**
+ * Answering what Claude is waiting on, from the phone; the hook on the computer hands it over.
+ * While Claude waits, the main answer sits in the bar at the bottom of the screen, always in reach.
+ */
 export function AnswerCard({ event, onChange }: Props) {
   if (!event.prompt || event.promptState === 'none') return null
 
@@ -33,10 +43,8 @@ export function AnswerCard({ event, onChange }: Props) {
   if (event.promptState === 'closed') {
     return (
       <section className="card" aria-label="Answer">
-        <p className="muted">
-          Claude isn&apos;t waiting for an answer here anymore. It was answered at the computer, the session moved on or was
-          closed, or the computer is asleep.
-        </p>
+        <h2>Claude isn&apos;t waiting for an answer here</h2>
+        <p className="muted">{CLOSED_TEXT[event.closedReason ?? 'moved-on']}</p>
       </section>
     )
   }
@@ -47,6 +55,7 @@ export function AnswerCard({ event, onChange }: Props) {
 function OpenPrompt({ event, prompt, onChange }: Props & { prompt: Prompt }) {
   const toast = useToast()
   const [busy, setBusy] = useState<string | null>(null)
+  const left = useTimeLeft(event.answerBy)
 
   async function send(reply: Reply, which: string) {
     setBusy(which)
@@ -61,44 +70,67 @@ function OpenPrompt({ event, prompt, onChange }: Props & { prompt: Prompt }) {
     } catch (e) {
       toast({ message: (e as Error).message, tone: 'error' })
       // Too late: show why instead of buttons that no longer work.
-      if (e instanceof ApiError && e.status === 409) onChange({ ...event, promptState: 'closed' })
+      if (e instanceof ApiError && e.status === 409) onChange({ ...event, promptState: 'closed', closedReason: 'moved-on' })
     } finally {
       setBusy(null)
     }
   }
 
-  const props = { prompt, busy, send }
-  return (
-    <section className="card answer" aria-label="Answer">
-      {prompt.type === 'permission' && <PermissionAnswer {...props} />}
-      {prompt.type === 'plan' && <PlanAnswer {...props} />}
-      {prompt.type === 'question' && <QuestionsAnswer {...props} questions={prompt.questions} />}
-      {prompt.type === 'reply' && <ReplyAnswer {...props} suggestions={prompt.suggestions} />}
-      {event.answerBy && <p className="muted small">Claude waits for an answer here until {clockTime(event.answerBy)}.</p>}
-    </section>
-  )
+  const props = { busy, send, left }
+  switch (prompt.type) {
+    case 'permission':
+      return <PermissionAnswer {...props} />
+    case 'plan':
+      return <PlanAnswer {...props} />
+    case 'question':
+      return <QuestionsAnswer {...props} questions={prompt.questions} />
+    case 'reply':
+      return <ReplyAnswer {...props} suggestions={prompt.suggestions} />
+  }
 }
 
 type AnswerProps = {
   busy: string | null
   send: (reply: Reply, which: string) => Promise<void>
+  /** "28 min left", or null without a deadline. */
+  left: string | null
 }
 
-function PermissionAnswer({ busy, send }: AnswerProps) {
-  const [message, setMessage] = useState('')
+/** The card, then the bar pinned above the tab bar (a sibling, so it pins for the whole screen). */
+function Answer({ title, left, children, bar }: { title: string; left: string | null; children: ReactNode; bar?: ReactNode }) {
   return (
     <>
-      <h2>Allow this?</h2>
-      <div className="answer-pair">
-        <button type="button" className="button" disabled={busy !== null} onClick={() => void send({ type: 'allow' }, 'allow')}>
-          {busy === 'allow' ? <Spinner /> : <CheckIcon size={18} />}
-          Allow
-        </button>
-        <button type="button" className="button danger" disabled={busy !== null} onClick={() => void send({ type: 'deny', message: '' }, 'deny')}>
-          {busy === 'deny' ? <Spinner /> : <CloseIcon size={18} />}
-          Deny
-        </button>
-      </div>
+      <section className="card answer" aria-label="Answer">
+        <div className="row answer-head">
+          <h2>{title}</h2>
+          {left && <span className="muted small push-right">{left}</span>}
+        </div>
+        {children}
+      </section>
+      {bar}
+    </>
+  )
+}
+
+function PermissionAnswer({ busy, send, left }: AnswerProps) {
+  const [message, setMessage] = useState('')
+  return (
+    <Answer
+      title="Allow this?"
+      left={left}
+      bar={
+        <div className="action-bar">
+          <button type="button" className="button danger" disabled={busy !== null} onClick={() => void send({ type: 'deny', message: '' }, 'deny')}>
+            {busy === 'deny' ? <Spinner /> : <CloseIcon size={18} />}
+            Deny
+          </button>
+          <button type="button" className="button" disabled={busy !== null} onClick={() => void send({ type: 'allow' }, 'allow')}>
+            {busy === 'allow' ? <Spinner /> : <CheckIcon size={18} />}
+            Allow
+          </button>
+        </div>
+      }
+    >
       <MessageBox
         label="Or tell Claude what to do instead"
         placeholder="Don't run that. First explain why…"
@@ -109,19 +141,25 @@ function PermissionAnswer({ busy, send }: AnswerProps) {
         disabled={busy !== null}
         onSend={() => void send({ type: 'deny', message }, 'deny-message')}
       />
-    </>
+    </Answer>
   )
 }
 
-function PlanAnswer({ busy, send }: AnswerProps) {
+function PlanAnswer({ busy, send, left }: AnswerProps) {
   const [message, setMessage] = useState('')
   return (
-    <>
-      <h2>Approve this plan?</h2>
-      <button type="button" className="button block" disabled={busy !== null} onClick={() => void send({ type: 'allow' }, 'allow')}>
-        {busy === 'allow' ? <Spinner /> : <CheckIcon size={18} />}
-        Approve plan
-      </button>
+    <Answer
+      title="Approve this plan?"
+      left={left}
+      bar={
+        <div className="action-bar single">
+          <button type="button" className="button" disabled={busy !== null} onClick={() => void send({ type: 'allow' }, 'allow')}>
+            {busy === 'allow' ? <Spinner /> : <CheckIcon size={18} />}
+            Approve plan
+          </button>
+        </div>
+      }
+    >
       <MessageBox
         label="Or keep planning, with feedback"
         placeholder="Also cover the migration…"
@@ -133,16 +171,23 @@ function PlanAnswer({ busy, send }: AnswerProps) {
         allowEmpty
         onSend={() => void send({ type: 'deny', message }, 'deny')}
       />
-    </>
+    </Answer>
   )
 }
 
-function QuestionsAnswer({ questions, busy, send }: AnswerProps & { questions: readonly Question[] }) {
+function QuestionsAnswer({ questions, busy, send, left }: AnswerProps & { questions: readonly Question[] }) {
   // Per question: the chosen option labels, and anything typed instead.
   const [chosen, setChosen] = useState<Record<string, string[]>>({})
   const [typed, setTyped] = useState<Record<string, string>>({})
+  // One question with one answer: tapping an option is the answer, no Send needed.
+  const oneTap = questions.length === 1 && !questions[0].multiSelect
 
   function toggle(q: Question, label: string) {
+    if (oneTap) {
+      setChosen({ [q.question]: [label] })
+      void send({ type: 'answers', answers: { [q.question]: label } }, `option:${label}`)
+      return
+    }
     setChosen((c) => {
       const current = c[q.question] ?? []
       if (!q.multiSelect) return { ...c, [q.question]: [label] }
@@ -162,16 +207,40 @@ function QuestionsAnswer({ questions, busy, send }: AnswerProps & { questions: r
   for (const q of questions) {
     answers[q.question] = [...(chosen[q.question] ?? []), typed[q.question]?.trim() ?? ''].filter(Boolean).join(', ')
   }
-  const complete = questions.every((q) => answers[q.question])
+  const missing = questions.filter((q) => !answers[q.question]).length
+  const sendLabel = oneTap
+    ? missing
+      ? 'Tap an option, or type an answer'
+      : 'Send answer'
+    : missing === 0
+      ? `Send ${questions.length === 1 ? 'answer' : 'answers'}`
+      : questions.length === 1
+        ? 'Pick an answer first'
+        : missing === questions.length
+          ? questions.length === 2
+            ? 'Answer both questions'
+            : `Answer all ${questions.length} questions`
+          : `Answer ${missing} more question${missing === 1 ? '' : 's'}`
 
   return (
-    <>
+    <Answer
+      title={questions.length === 1 ? 'Your answer' : 'Your answers'}
+      left={left}
+      bar={
+        <div className="action-bar single">
+          <button type="button" className="button" disabled={missing > 0 || busy !== null} onClick={() => void send({ type: 'answers', answers }, 'answers')}>
+            {busy === 'answers' && <Spinner />}
+            {sendLabel}
+          </button>
+        </div>
+      }
+    >
       {questions.map((q, i) => (
         <fieldset key={q.question} className="question">
           <legend>
             {q.header && <span className="status-chip warn">{q.header}</span>}
             <span className="question-text">{q.question}</span>
-            {q.multiSelect && <span className="muted small">Pick any</span>}
+            <span className="muted small">{q.multiSelect ? 'Pick any' : 'Pick one'}</span>
           </legend>
           <div className="choices">
             {q.options.map((option) => {
@@ -185,8 +254,12 @@ function QuestionsAnswer({ questions, busy, send }: AnswerProps & { questions: r
                   disabled={busy !== null}
                   onClick={() => toggle(q, option.label)}
                 >
-                  <span className="choice-label">{option.label}</span>
-                  {option.description && <span className="muted small">{option.description}</span>}
+                  <span className={q.multiSelect ? 'choice-mark box' : 'choice-mark'} aria-hidden />
+                  <span className="choice-text">
+                    <span className="choice-label">{option.label}</span>
+                    {option.description && <span className="muted small">{option.description}</span>}
+                  </span>
+                  {busy === `option:${option.label}` && <Spinner />}
                 </button>
               )
             })}
@@ -202,19 +275,18 @@ function QuestionsAnswer({ questions, busy, send }: AnswerProps & { questions: r
           />
         </fieldset>
       ))}
-      <button type="button" className="button block" disabled={!complete || busy !== null} onClick={() => void send({ type: 'answers', answers }, 'answers')}>
-        {busy === 'answers' && <Spinner />}
-        Send {questions.length === 1 ? 'answer' : 'answers'}
-      </button>
-    </>
+    </Answer>
   )
 }
 
-function ReplyAnswer({ suggestions, busy, send }: AnswerProps & { suggestions: readonly string[] }) {
+function ReplyAnswer({ suggestions, busy, send, left }: AnswerProps & { suggestions: readonly string[] }) {
   const [message, setMessage] = useState('')
   return (
-    <>
-      <h2>Reply to Claude</h2>
+    <Answer title="Send Claude a note" left={left}>
+      <p className="muted small">
+        Claude reads it as your next message. It won&apos;t count as your go-ahead for changes like committing or
+        pushing; for those, Claude asks you a question.
+      </p>
       {suggestions.length > 0 && (
         <div className="choices">
           {suggestions.map((s) => (
@@ -226,7 +298,7 @@ function ReplyAnswer({ suggestions, busy, send }: AnswerProps & { suggestions: r
         </div>
       )}
       <MessageBox
-        label={suggestions.length ? 'Or write your own' : 'Your message'}
+        label={suggestions.length ? 'Or write your own' : 'Your note'}
         placeholder="Explain what you changed first…"
         value={message}
         onChange={setMessage}
@@ -235,7 +307,7 @@ function ReplyAnswer({ suggestions, busy, send }: AnswerProps & { suggestions: r
         disabled={busy !== null}
         onSend={() => void send({ type: 'message', message }, 'message')}
       />
-    </>
+    </Answer>
   )
 }
 
@@ -271,6 +343,18 @@ function MessageBox(props: {
       </button>
     </div>
   )
+}
+
+/** "28 min left", kept current; "less than a minute left" at the end. */
+function useTimeLeft(answerBy: string | null): string | null {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 15_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  if (!answerBy) return null
+  const minutes = Math.floor((new Date(answerBy).getTime() - now) / 60_000)
+  return minutes < 1 ? 'less than a minute left' : `${minutes} min left`
 }
 
 function describeReply(prompt: Prompt, reply: Reply): string {

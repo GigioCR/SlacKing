@@ -109,3 +109,27 @@ export const RetryIcon = (p: IconProps) => (
     <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />
   </Svg>
 )
+
+export const TerminalIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M5 8l4 4-4 4M12 17h7" />
+  </Svg>
+)
+
+export const PlanIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+  </Svg>
+)
+
+export const ShieldIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+  </Svg>
+)
+
+export const PauseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 6v12M15 6v12" />
+  </Svg>
+)

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { eventMessage } from '../src/application/notification-message'
 import { answerPrompt, closePrompt, readPromptAnswer } from '../src/application/use-cases/answer-prompt'
+import { getHookActivity } from '../src/application/use-cases/hook-activity'
 import { receiveAgentEvent } from '../src/application/use-cases/receive-agent-event'
 import { NO_PROMPT, type AgentEvent } from '../src/domain/agent-event'
-import { parsePrompt, parsePromptInput, parseReply, promptState, type Prompt } from '../src/domain/prompt'
+import { closedReason, parsePrompt, parsePromptInput, parseReply, promptState, type Prompt } from '../src/domain/prompt'
 import { InMemoryEventRepository, InMemorySubscriptionRepository } from '../src/infrastructure/persistence/in-memory/repositories'
 
 const question: Prompt = {
@@ -167,5 +168,43 @@ describe('answering from the phone', () => {
 
   it('is not answerable without a prompt', () => {
     expect(promptState({ ...NO_PROMPT, receivedAt: new Date() }, new Date())).toBe('none')
+  })
+})
+
+describe('closedReason', () => {
+  const base = { ...NO_PROMPT, prompt: { type: 'plan' } as Prompt, receivedAt: new Date('2026-11-01T12:00:00Z'), answerBy: new Date('2026-11-01T12:30:00Z') }
+  const at = (iso: string) => new Date(iso)
+
+  it('tells the three ways an answer stops being wanted apart', () => {
+    expect(closedReason({ ...base, hookSeenAt: at('2026-11-01T12:10:00Z') }, at('2026-11-01T12:10:05Z'))).toBeNull()
+    expect(closedReason({ ...base, closedAt: at('2026-11-01T12:05:00Z') }, at('2026-11-01T12:06:00Z'))).toBe('moved-on')
+    expect(closedReason({ ...base, hookSeenAt: at('2026-11-01T12:29:59Z') }, at('2026-11-01T12:30:01Z'))).toBe('timed-out')
+    expect(closedReason({ ...base, hookSeenAt: at('2026-11-01T12:10:00Z') }, at('2026-11-01T12:11:00Z'))).toBe('session-gone')
+  })
+})
+
+describe('hook activity', () => {
+  it('says when the computer was last heard from and how long it waits', async () => {
+    const events = new InMemoryEventRepository()
+    const at = new Date('2026-11-01T12:00:00Z')
+    await events.add({ ...NO_PROMPT, id: 'a', kind: 'finished', sessionId: 's', sessionTitle: 't', project: '', summary: 'x', receivedAt: at })
+    await events.add({
+      ...NO_PROMPT,
+      id: 'b',
+      kind: 'needs-input',
+      sessionId: 's',
+      sessionTitle: 't',
+      project: '',
+      summary: 'x',
+      receivedAt: new Date('2026-11-01T12:05:00Z'),
+      prompt: { type: 'plan' },
+      answerBy: new Date('2026-11-01T12:35:00Z'),
+    })
+    await events.markHookSeen('b', new Date('2026-11-01T12:06:00Z'))
+    expect(await getHookActivity({ events })()).toEqual({
+      lastEventAt: '2026-11-01T12:05:00.000Z',
+      lastCheckInAt: '2026-11-01T12:06:00.000Z',
+      waitMinutes: 30,
+    })
   })
 })

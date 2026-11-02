@@ -132,9 +132,8 @@ a {
 }
 
 .brand-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 50px;
+  height: 30px;
 }
 
 .content {
@@ -320,6 +319,39 @@ label {
   font-size: 0.95rem;
 }
 
+.help summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.help ul {
+  margin: 4px 0 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.card p code {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.warning-card {
+  border-color: var(--ask);
+  background: var(--ask-bg);
+  gap: 8px;
+}
+
 .error-card {
   border-color: var(--danger);
   align-items: flex-start;
@@ -467,6 +499,47 @@ label {
   font-weight: 750;
 }
 
+/* Title and time share a line, which keeps each card to three lines. */
+.event-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.event-title-row .event-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-time {
+  flex: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.event .meta {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.meta-project {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count-chip.waiting,
+.day-heading.waiting {
+  color: var(--ask);
+}
+
+.count-chip.waiting {
+  background: var(--ask-bg);
+}
+
 .event-summary {
   color: var(--muted);
   font-size: 0.95rem;
@@ -486,14 +559,23 @@ label {
   justify-content: center;
 }
 
-.kind-icon.finished {
+.kind-icon.done,
+.badge.done {
   color: var(--done);
   background: var(--done-bg);
 }
 
-.kind-icon.needs-input {
+.kind-icon.ask,
+.badge.ask {
   color: var(--ask);
   background: var(--ask-bg);
+}
+
+/* Answered elsewhere, expired, or the session is gone: nothing to do here. */
+.kind-icon.quiet,
+.badge.quiet {
+  color: var(--muted);
+  background: var(--surface-2);
 }
 
 .badge {
@@ -504,16 +586,6 @@ label {
   border-radius: 999px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-}
-
-.badge.finished {
-  color: var(--done);
-  background: var(--done-bg);
-}
-
-.badge.needs-input {
-  color: var(--ask);
-  background: var(--ask-bg);
 }
 
 .meta {
@@ -527,11 +599,6 @@ label {
 .meta > span + span::before {
   content: '·';
   margin-right: 10px;
-}
-
-.meta .waiting {
-  color: var(--ask);
-  font-weight: 700;
 }
 
 .pager {
@@ -622,15 +689,62 @@ label {
   font: inherit;
   text-align: left;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
+  align-items: center;
+  gap: 12px;
   cursor: pointer;
 }
 
 .choice.selected {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.choice-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* A radio circle for pick-one, a checkbox square for pick-any. */
+.choice-mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: grid;
+  place-items: center;
+}
+
+.choice-mark.box {
+  border-radius: 6px;
+}
+
+.choice.selected .choice-mark {
+  border-color: var(--accent);
+}
+
+.choice.selected .choice-mark::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.choice.selected .choice-mark.box::after {
+  border-radius: 3px;
+}
+
+.answer-head {
+  align-items: baseline;
+}
+
+.detail-tools {
+  display: flex;
+  gap: 2px;
+  margin: -10px -10px -10px auto;
 }
 
 .choice-label {
@@ -656,6 +770,10 @@ label {
   margin: 0 -16px;
   padding: 12px 16px;
   background: var(--bg);
+}
+
+.action-bar.single {
+  grid-template-columns: 1fr;
 }
 
 .action-bar::before {
@@ -861,10 +979,6 @@ label {
   text-align: center;
 }
 
-.auth-hero img {
-  border-radius: 18px;
-  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
-}
 
 .qr {
   align-self: center;
