@@ -64,6 +64,18 @@ describe('lastTurnSummary', () => {
   it('is empty when nothing was said', () => {
     expect(lastTurnSummary([user('hello')])).toBe('')
   })
+
+  it('drops a recap that more work came after, and says what the last reply says', () => {
+    const askedAgain = { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'AskUserQuestion', input: {} }] } }
+    const entries = [
+      user('fix it'),
+      wrapUp('Fixed. Not committed yet.', 'Commit and push?'),
+      askedAgain,
+      toolResult(),
+      assistantText('Committed and pushed as 5c27d3a.'),
+    ]
+    expect(lastTurnSummary(entries)).toBe('Committed and pushed as 5c27d3a.')
+  })
 })
 
 describe('describeRequest', () => {
@@ -192,6 +204,12 @@ describe('answering from the phone', () => {
     expect(buildPayload(ask, [], { answers: true })?.prompt).toEqual({ type: 'question', questions: ask.tool_input.questions })
     expect(promptFor({ hook_event_name: 'PermissionRequest', tool_name: 'ExitPlanMode' }, [])).toEqual({ type: 'plan' })
     expect(promptFor({ hook_event_name: 'PermissionRequest', tool_name: 'Bash' }, [])).toEqual({ type: 'permission', tool: 'Bash' })
+  })
+
+  it("doesn't offer the buttons of a recap that more work came after", () => {
+    const commit = { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash', input: { command: 'git push' } }] } }
+    const entries = [user('go'), withActions, commit, toolResult(), assistantText('Pushed.')]
+    expect(promptFor({ hook_event_name: 'Stop' }, entries)).toEqual({ type: 'reply', suggestions: [] })
   })
 
   it('offers nothing when answering is off, or for events it cannot answer', () => {

@@ -114,14 +114,16 @@ function lastTurn(entries) {
 
 /**
  * The input of the last turn's wrap-up: the recap, question and reply buttons the Claude desktop
- * app shows under every reply. Null without one (the terminal has none).
+ * app shows under every reply. Null without one (the terminal has none), and when Claude kept
+ * working after it: then its recap and question are out of date (a "Commit?" asked again with a
+ * question tool and acted on), so the last reply says what happened instead.
  */
 function lastWrapUp(turn) {
   for (let i = turn.length - 1; i >= 0; i--) {
     for (const block of contentBlocks(turn[i]).slice().reverse()) {
-      if (block.type === 'tool_use' && /wrap_up$/.test(block.name ?? '') && typeof block.input?.recap === 'string') {
-        return block.input
-      }
+      if (block.type !== 'tool_use') continue
+      if (!/wrap_up$/.test(block.name ?? '')) return null
+      if (typeof block.input?.recap === 'string') return block.input
     }
   }
   return null
