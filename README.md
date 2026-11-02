@@ -45,7 +45,18 @@ Allow and Approve always open the screen, so nothing runs from a lock screen wit
 it. iPhone shows no buttons on web notifications; everything works from the screen. The hook waits
 for the phone up to 30 minutes (`waitMinutes` in `~/.claude/hooks/slacking.json`); `"answers": false`
 there turns answering off and only notifies. Answering at the computer, or typing a new message,
-ends the wait and the phone stops offering.
+ends the wait and the phone stops offering. So does the session ending (closed, killed, or the
+computer asleep): the hook checks in every 2 seconds while it waits, and 30 seconds without a
+check-in closes the answer on the phone.
+
+Answers to Claude's prompts count as yours: Claude Code delivers them through its own permission
+flow. A free-text reply after a turn reaches Claude too, but as a hook notice, which Claude won't
+take as approval for changes (editing, committing, pushing). To give a real go-ahead from the
+phone, have Claude ask for it as a question, for example with this in `~/.claude/CLAUDE.md`:
+
+> When you need my go-ahead to do something that changes things (commit, push, deploy, delete,
+> run something risky, or start a bigger change), ask with the AskUserQuestion tool, not only in
+> text or with reply buttons, so I can answer from my phone.
 
 Only the session name, the folder name and the summary leave your computer, never the session log.
 Note that a permission summary includes the command Claude wants to run.

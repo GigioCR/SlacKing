@@ -31,14 +31,17 @@ export interface PromptAnswer {
 }
 
 /**
- * What the waiting hook polls. A cleared notification reads as closed: nobody can answer it now,
- * so the hook stops waiting and Claude asks at the computer.
+ * What the waiting hook polls. Each poll also shows the hook is still there to hand an answer
+ * over; when the polls stop, the prompt closes (HOOK_SILENCE_MS). A cleared notification reads as
+ * closed: nobody can answer it now, so the hook stops waiting and Claude asks at the computer.
  */
 export function readPromptAnswer(deps: Deps) {
   return async (id: string): Promise<PromptAnswer> => {
+    const now = deps.clock.now()
+    await deps.events.markHookSeen(id, now)
     const event = await deps.events.get(id)
     if (!event) return { state: 'closed', reply: null }
-    return { state: promptState(event, deps.clock.now()), reply: event.reply }
+    return { state: promptState(event, now), reply: event.reply }
   }
 }
 

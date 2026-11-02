@@ -9,6 +9,8 @@ export interface EventRepository {
    * closed, before its deadline) and in one step, so two answers can't both win. False otherwise.
    */
   saveReply(id: string, reply: Reply, at: Date): Promise<boolean>
+  /** The hook checked for an answer at `at`: it is still waiting (see HOOK_SILENCE_MS). */
+  markHookSeen(id: string, at: Date): Promise<void>
   /** Marks open prompts closed: one event's, or every one of a session's. Answered ones stay answered. */
   closePrompt(id: string, at: Date): Promise<void>
   closeSessionPrompts(sessionId: string, at: Date): Promise<void>

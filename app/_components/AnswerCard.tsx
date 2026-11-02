@@ -33,7 +33,10 @@ export function AnswerCard({ event, onChange }: Props) {
   if (event.promptState === 'closed') {
     return (
       <section className="card" aria-label="Answer">
-        <p className="muted">Claude isn&apos;t waiting for an answer here anymore. It was answered at the computer, or it moved on.</p>
+        <p className="muted">
+          Claude isn&apos;t waiting for an answer here anymore. It was answered at the computer, the session moved on or was
+          closed, or the computer is asleep.
+        </p>
       </section>
     )
   }

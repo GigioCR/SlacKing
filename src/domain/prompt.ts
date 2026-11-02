@@ -142,16 +142,32 @@ export function parseReply(prompt: Prompt, raw: unknown): Reply {
   }
 }
 
+/**
+ * The hook checks for an answer every 2 seconds while it waits. Silence this long means it is no
+ * longer there to hand an answer over: the session was closed or killed (which ends the hook with
+ * it), it crashed, or the computer is asleep. The prompt then reads as closed, and opens again if
+ * the hook comes back before the deadline.
+ */
+export const HOOK_SILENCE_MS = 30_000
+
 export interface PromptStatus {
   readonly prompt: Prompt | null
   readonly answerBy: Date | null
   readonly reply: Reply | null
   readonly closedAt: Date | null
+  /** The hook's last check for an answer; null until its first one. */
+  readonly hookSeenAt: Date | null
 }
 
-export function promptState(event: PromptStatus, now: Date): PromptState {
+/** When the hook last showed it was waiting: its last check, or the event's arrival before that. */
+export function lastHeardFrom(event: Pick<PromptStatus, 'hookSeenAt'> & { readonly receivedAt: Date }): Date {
+  return event.hookSeenAt ?? event.receivedAt
+}
+
+export function promptState(event: PromptStatus & { readonly receivedAt: Date }, now: Date): PromptState {
   if (!event.prompt || !event.answerBy) return 'none'
   if (event.reply) return 'answered'
   if (event.closedAt || event.answerBy <= now) return 'closed'
+  if (now.getTime() - lastHeardFrom(event).getTime() > HOOK_SILENCE_MS) return 'closed'
   return 'open'
 }

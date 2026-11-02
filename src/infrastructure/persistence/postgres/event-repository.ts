@@ -1,9 +1,10 @@
 import type { EventRepository } from '../../../application/ports/event-repository'
 import type { AgentEvent, EventCursor } from '../../../domain/agent-event'
-import type { Prompt, Reply } from '../../../domain/prompt'
+import { HOOK_SILENCE_MS, type Prompt, type Reply } from '../../../domain/prompt'
 import type { Pool } from './pool'
 
-// Table defined in migrations/001_initial.sql; the prompt columns in 003_prompts.sql.
+// Table defined in migrations/001_initial.sql; the prompt columns in 003_prompts.sql and
+// 004_hook_heartbeat.sql.
 
 interface EventRow {
   id: string
@@ -18,6 +19,7 @@ interface EventRow {
   reply: Reply | null
   replied_at: Date | null
   closed_at: Date | null
+  hook_seen_at: Date | null
 }
 
 function toEvent(row: EventRow): AgentEvent {
@@ -34,11 +36,16 @@ function toEvent(row: EventRow): AgentEvent {
     reply: row.reply,
     repliedAt: row.replied_at,
     closedAt: row.closed_at,
+    hookSeenAt: row.hook_seen_at,
   }
 }
 
-// Open: has a prompt, no answer, not closed, deadline ahead. Kept in step with promptState().
-const OPEN = 'prompt is not null and reply is null and closed_at is null and answer_by > $2'
+// Open at $2: has a prompt, no answer, not closed, deadline ahead, and the hook heard from since
+// $3 (= $2 minus HOOK_SILENCE_MS). Kept in step with promptState().
+const OPEN = `prompt is not null and reply is null and closed_at is null and answer_by > $2
+  and coalesce(hook_seen_at, received_at) >= $3`
+
+const silentSince = (at: Date) => new Date(at.getTime() - HOOK_SILENCE_MS)
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -66,19 +73,28 @@ export class PostgresEventRepository implements EventRepository {
   async saveReply(id: string, reply: Reply, at: Date): Promise<boolean> {
     if (!UUID.test(id)) return false
     const result = await this.pool.query(
-      `update agent_events set reply = $3, replied_at = $2 where id = $1 and ${OPEN}`,
-      [id, at, JSON.stringify(reply)],
+      `update agent_events set reply = $4, replied_at = $2 where id = $1 and ${OPEN}`,
+      [id, at, silentSince(at), JSON.stringify(reply)],
     )
     return (result.rowCount ?? 0) > 0
   }
 
+  async markHookSeen(id: string, at: Date): Promise<void> {
+    if (!UUID.test(id)) return
+    await this.pool.query('update agent_events set hook_seen_at = $2 where id = $1 and prompt is not null', [id, at])
+  }
+
   async closePrompt(id: string, at: Date): Promise<void> {
     if (!UUID.test(id)) return
-    await this.pool.query(`update agent_events set closed_at = $2 where id = $1 and ${OPEN}`, [id, at])
+    await this.pool.query(`update agent_events set closed_at = $2 where id = $1 and ${OPEN}`, [id, at, silentSince(at)])
   }
 
   async closeSessionPrompts(sessionId: string, at: Date): Promise<void> {
-    await this.pool.query(`update agent_events set closed_at = $2 where session_id = $1 and ${OPEN}`, [sessionId, at])
+    await this.pool.query(`update agent_events set closed_at = $2 where session_id = $1 and ${OPEN}`, [
+      sessionId,
+      at,
+      silentSince(at),
+    ])
   }
 
   async get(id: string): Promise<AgentEvent | null> {

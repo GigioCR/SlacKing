@@ -32,7 +32,7 @@ export interface AgentEvent extends PromptStatus {
 export type AgentEventInput = Pick<AgentEvent, 'kind' | 'sessionId' | 'sessionTitle' | 'project' | 'summary'>
 
 /** The prompt fields of a notification that can't be answered from the phone. */
-export const NO_PROMPT = { prompt: null, answerBy: null, reply: null, repliedAt: null, closedAt: null } as const
+export const NO_PROMPT = { prompt: null, answerBy: null, reply: null, repliedAt: null, closedAt: null, hookSeenAt: null } as const
 
 /** Notifications are kept this long, then deleted. */
 export const RETENTION_DAYS = 7

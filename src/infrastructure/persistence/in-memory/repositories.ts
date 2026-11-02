@@ -73,6 +73,11 @@ export class InMemoryEventRepository implements EventRepository {
     return true
   }
 
+  async markHookSeen(id: string, at: Date): Promise<void> {
+    const event = this.events.get(id)
+    if (event?.prompt) this.events.set(id, { ...event, hookSeenAt: at })
+  }
+
   async closePrompt(id: string, at: Date): Promise<void> {
     const event = this.events.get(id)
     if (event && promptState(event, at) === 'open') this.events.set(id, { ...event, closedAt: at })

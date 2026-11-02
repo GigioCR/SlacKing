@@ -154,7 +154,18 @@ describe('answering from the phone', () => {
     expect(await s.read('gone')).toEqual({ state: 'closed', reply: null })
   })
 
+  it('closes while the hook is quiet (session closed, killed, computer asleep), and reopens when it is back', async () => {
+    const s = await setup()
+    const { id } = await s.receive(asked())
+    s.later(31_000)
+    await expect(s.answer(id, { type: 'allow' })).rejects.toThrow(/isn't waiting/)
+    // The hook polls again: it is still there.
+    expect((await s.read(id)).state).toBe('open')
+    s.later(20_000)
+    expect((await s.answer(id, { type: 'allow' })).promptState).toBe('answered')
+  })
+
   it('is not answerable without a prompt', () => {
-    expect(promptState({ ...NO_PROMPT }, new Date())).toBe('none')
+    expect(promptState({ ...NO_PROMPT, receivedAt: new Date() }, new Date())).toBe('none')
   })
 })

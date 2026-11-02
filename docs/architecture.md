@@ -42,7 +42,10 @@ answer to Claude:
 While a prompt is open the session log stays still. A new person-side line (the tool result of an
 answer at the computer, an interruption, a typed message) means the session moved on: the hook
 stops and `DELETE`s the prompt, which closes it on the phone. A new event from a session also
-closes that session's open prompts. Buttons on the notification (`public/sw.js`, at most two on
+closes that session's open prompts. A session that ends takes its waiting hook with it (closed,
+killed, or the computer asleep: no SessionEnd hook runs when it is killed), so each poll is also a
+heartbeat (`hook_seen_at`): 30 s without one reads as closed (`HOOK_SILENCE_MS`), and a poll after
+that opens it again. Buttons on the notification (`public/sw.js`, at most two on
 Android) send a one-tap answer only where that is safe: Deny, a two-option question, a quick reply.
 Allow and Approve open the screen first.
 
@@ -89,7 +92,7 @@ authenticator (real P-256 keys and signatures), including answers made for anoth
 
 Supabase Postgres through `pg` and Supabase's transaction pooler (fits serverless). Tables in
 `migrations/`: `agent_events`, `device_subscriptions`, `authenticator` (one row) in 001;
-`passkeys` and `webauthn_challenges` in 002; the prompt and reply columns of `agent_events` in 003.
+`passkeys` and `webauthn_challenges` in 002; the prompt and reply columns of `agent_events` in 003, and the hook's heartbeat in 004.
 Row level security is on with no policies and the Data API roles lose their grants, so only the
 app's own connection can read them. Without `DATABASE_URL` the in-memory repositories are used.
 
